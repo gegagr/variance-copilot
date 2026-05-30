@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://variance-copilot/contracts/flagged_variance/1.0.0",
+  "title": "FlaggedVariance",
+  "description": "Public, versioned contract for a flagged material variance. Block 3 (AI layer) depends on this shape. Changes MUST bump schema_version deliberately.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "flag_id",
+    "reporting_line",
+    "line_type",
+    "time_cut",
+    "scenario_pair",
+    "current_value",
+    "comparator_value",
+    "direction",
+    "rule_id",
+    "abs_threshold",
+    "pct_threshold",
+    "pp_threshold"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "flag_id": { "type": "string", "minLength": 1 },
+    "reporting_line": { "type": "string", "minLength": 1 },
+    "line_type": { "enum": ["revenue", "cost", "subtotal", "margin"] },
+    "time_cut": { "enum": ["prior_month_ytd", "current_month", "ytd", "full_year"] },
+    "scenario_pair": { "enum": ["current_vs_prior_year", "current_vs_budget"] },
+    "current_value": { "type": "string", "description": "Decimal serialized as string to preserve exact precision." },
+    "comparator_value": { "type": "string", "description": "Decimal as string." },
+    "abs_variance": { "type": ["string", "null"], "description": "Decimal as string; null for margin lines." },
+    "pct_variance": { "type": ["string", "null"], "description": "Decimal as string; null when not applicable / not meaningful." },
+    "pp_variance": { "type": ["string", "null"], "description": "Decimal as string; margin lines only." },
+    "direction": { "enum": ["favorable", "unfavorable"] },
+    "rule_id": { "type": "string", "minLength": 1 },
+    "abs_threshold": { "type": "string", "description": "Decimal as string." },
+    "pct_threshold": { "type": "string", "description": "Decimal as string." },
+    "pp_threshold": { "type": "string", "description": "Decimal as string." }
+  }
+}

@@ -1,0 +1,40 @@
+# --- Real client data protection (Constitution Principle VIII) ---
+# Only committed MOCK data under sample/ and config/ is allowed. Everything that
+# could be real client input stays out of version control.
+/data_real/
+/inputs/
+/private/
+*.real.csv
+*.client.csv
+*.prod.csv
+secrets/
+*.key
+*.pem
+
+# Build artifacts produced by the pipeline
+/build/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env
+.env.*
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- Tooling / OS ---
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Vendored Spec Kit tooling (not part of the application)
+/spec-kit/

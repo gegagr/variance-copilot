@@ -1,0 +1,28 @@
+[project]
+name = "variance-copilot-engine"
+version = "0.1.0"
+description = "Deterministic P&L and variance engine (Block 1) for Variance Copilot"
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=2.2",
+    "pydantic>=2.6",
+    "openpyxl>=3.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "jsonschema>=4.21",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

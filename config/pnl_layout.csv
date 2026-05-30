@@ -1,0 +1,10 @@
+reporting_line,order,line_type,components,margin_numerator,margin_base
+revenue,1,revenue,,,
+cogs,2,cost,,,
+gross_profit,3,subtotal,revenue;cogs,,
+gross_margin_pct,4,margin,,gross_profit,revenue
+opex,5,cost,,,
+ebitda,6,subtotal,gross_profit;opex,,
+ebitda_margin_pct,7,margin,,ebitda,revenue
+depreciation,8,cost,,,
+ebit,9,subtotal,ebitda;depreciation,,
