@@ -70,6 +70,30 @@ uv run python -m shell.investigate_pipeline --current-period 6 --out build/inves
 
 The whole test suite runs offline with a `FakeLLMProvider` — no key, no network.
 
+## Block 4 — Review API layer (`api/`)
+
+The composition root: a thin FastAPI driving adapter over a pure `ReviewService` that wires the
+fixture Repository + engine + agent + a SQLite-backed `ReviewStore`. It serves the P&L, flags, and
+AI investigation records, and manages the controller's review workflow (investigate → answer →
+accept / edit / dismiss).
+
+- **`api/`** — `main.py` (app + composition root, CORS, `/docs`), `deps.py` (DI providers),
+  `schemas.py` (DTOs reusing Block 1/3 contracts), `routes/` (thin handlers), `services/`
+  (`review_service.py` workflow + `lifecycle.py` state machine).
+- **`data/review_store.py`** + **`data/sqlite_review_store.py`** — `ReviewStore` port + SQLite
+  adapter (review DB git-ignored).
+- The API **computes no figure** — engine/agent output passes through verbatim; nothing is final
+  unless `status == accepted`; editing an accepted item reverts to `drafted`; every action is
+  audited. Invalid lifecycle transitions are rejected (HTTP 409).
+
+Run (live needs `OPENROUTER_API_KEY`):
+
+```bash
+uv run uvicorn api.main:app --reload     # Swagger UI at http://localhost:8000/docs
+```
+
+All API tests run offline via `TestClient` + Block 3's `FakeLLMProvider` (no key, no network).
+
 ## Guarantees (enforced by tests)
 
 - **Deterministic** — identical inputs + config produce byte-identical output (`test_determinism.py`).

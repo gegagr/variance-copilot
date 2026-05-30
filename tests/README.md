@@ -35,4 +35,23 @@ Constitution guards: Principle I (Determinism) → `test_determinism.py`; Princi
 Block 3 constitution guards: no LLM-produced numbers → `test_guards.py`; no SDK in agent core →
 `test_agent_architecture.py`; fail-safe + bounded retry → `test_investigate_loop.py`.
 
+## Block 4 (Review API) — Success Criteria traceability
+
+| SC | Criterion | Covering test(s) |
+|----|-----------|------------------|
+| SC-001 | API alters no figure (pass-through) | `test_api_pnl.py` (verbatim equality + no-arithmetic), `test_api_architecture.py` |
+| SC-002 | Nothing final without accept | `test_api_review_actions.py::test_accept_makes_final`, `::test_accept_requires_draft` |
+| SC-003 | Edit retains original + edited text | `test_api_review_actions.py::test_edit_retains_original_and_records`, `::test_edit_on_accepted_reverts_to_drafted` |
+| SC-004 | Every state change audited (actor + ts) | `test_api_review_actions.py::test_every_action_audited`, `test_api_investigations.py::test_investigate_is_audited` |
+| SC-005 | Always one status; invalid transitions rejected | `test_lifecycle.py` (all), `test_api_*` 409 cases |
+| SC-006 | Progress == accepted + dismissed / total | `test_api_progress.py::test_progress_counts_resolved` |
+| SC-007 | Accepted set in layout order, dismissed excluded | `test_api_progress.py::test_accepted_set_in_layout_order_excludes_dismissed` |
+| SC-008 | State survives restart | `test_review_store.py::test_persistence_survives_restart` |
+| SC-009 | API documented (OpenAPI) | `test_api_contract.py::test_openapi_published` + all contract tests |
+| SC-010 | No ungrounded commentary served | `test_api_investigations.py::test_failsafe_keeps_detected_no_commentary` |
+
+Block 4 constitution guards: no financial arithmetic in the API + thin routes + FastAPI-free
+service + no commentary built in the API → `test_api_architecture.py`; durable persistence →
+`test_review_store.py`; explicit lifecycle → `test_lifecycle.py`.
+
 Run: `uv run pytest`

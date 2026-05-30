@@ -1,0 +1,96 @@
+"""US2 + US3: investigations (progressive status) and answer → draft, via TestClient + fake provider."""
+
+from __future__ import annotations
+
+from agent.fakes import FakeLLMProvider, final, tool_call
+
+QUERY = tool_call("query_gl_detail", {"reporting_line": "ebitda", "period": 6, "scenario": "current_year"})
+DRAFT = final({"status": "draft", "narrative": "EBITDA reached {{fig:flag.current_value}}.", "aggregates": []})
+QUESTION = final({"status": "question", "hypothesis_text": "Late booking?",
+                  "narrative": "EBITDA differs by {{fig:flag.abs_variance}}. Late booking?", "aggregates": []})
+BAD = final({"status": "draft", "narrative": "EBITDA rose 5%.", "aggregates": []})  # raw digit → guard rejects
+
+
+def _ebitda_flag_id(client):
+    flags = client.get("/variances", params={"current_period": 6}).json()
+    return next(f["flag_id"] for f in flags
+               if f["reporting_line"] == "ebitda" and f["time_cut"] == "ytd"
+               and f["scenario_pair"] == "current_vs_prior_year")
+
+
+def test_investigate_to_draft(make_api_client):
+    client, _ = make_api_client(FakeLLMProvider([QUERY, DRAFT]))
+    fid = _ebitda_flag_id(client)
+    r = client.post(f"/review/{fid}/investigate")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "drafted"
+    assert body["original_draft"] is not None
+    assert body["record"]["status"] == "draft"
+
+
+def test_investigate_to_question(make_api_client):
+    client, _ = make_api_client(FakeLLMProvider([QUERY, QUESTION]))
+    fid = _ebitda_flag_id(client)
+    body = client.post(f"/review/{fid}/investigate").json()
+    assert body["status"] == "awaiting_controller"
+    assert body["record"]["question"] is not None
+
+
+def test_answer_to_draft(make_api_client):
+    client, _ = make_api_client(FakeLLMProvider([QUERY, QUESTION, DRAFT]))
+    fid = _ebitda_flag_id(client)
+    client.post(f"/review/{fid}/investigate")  # → awaiting_controller
+    r = client.post(f"/review/{fid}/answer", json={"text": "Late-booked supplier invoice."})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "drafted"
+    assert body["controller_answer"]["text"] == "Late-booked supplier invoice."
+    assert body["original_draft"] is not None
+
+
+def test_answer_on_non_awaiting_rejected(make_api_client):
+    client, _ = make_api_client(FakeLLMProvider([QUERY, DRAFT]))
+    fid = _ebitda_flag_id(client)
+    client.post(f"/review/{fid}/investigate")  # → drafted
+    r = client.post(f"/review/{fid}/answer", json={"text": "x"})
+    assert r.status_code == 409
+
+
+def test_failsafe_keeps_detected_no_commentary(make_api_client):
+    client, _ = make_api_client(FakeLLMProvider([QUERY, BAD, BAD]))  # guard rejects twice
+    fid = _ebitda_flag_id(client)
+    body = client.post(f"/review/{fid}/investigate").json()
+    assert body["status"] == "detected"
+    assert body["original_draft"] is None
+
+
+def test_reinvestigate_from_drafted_allowed(make_api_client):
+    client, _ = make_api_client(FakeLLMProvider([QUERY, DRAFT, QUERY, DRAFT]))
+    fid = _ebitda_flag_id(client)
+    client.post(f"/review/{fid}/investigate")          # → drafted
+    r = client.post(f"/review/{fid}/investigate")      # re-run from drafted → allowed
+    assert r.status_code == 200 and r.json()["status"] == "drafted"
+
+
+def test_reinvestigate_from_awaiting_rejected(make_api_client):
+    client, _ = make_api_client(FakeLLMProvider([QUERY, QUESTION]))
+    fid = _ebitda_flag_id(client)
+    client.post(f"/review/{fid}/investigate")          # → awaiting_controller
+    r = client.post(f"/review/{fid}/investigate")      # not allowed from awaiting_controller
+    assert r.status_code == 409
+
+
+def test_investigate_is_audited(make_api_client):
+    client, _ = make_api_client(FakeLLMProvider([QUERY, DRAFT]))
+    fid = _ebitda_flag_id(client)
+    client.post(f"/review/{fid}/investigate")
+    history = client.get(f"/review/{fid}/history").json()
+    assert any(a["action"] == "investigate" and a["actor"] == "controller" and a["ts"]
+               for a in history)
+
+
+def test_unknown_flag_404(make_api_client):
+    client, _ = make_api_client(FakeLLMProvider([]))
+    assert client.post("/review/nope/investigate").status_code == 404
+    assert client.get("/review/nope").status_code == 404

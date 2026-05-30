@@ -9,12 +9,13 @@ Word first-class, No Real Client Data).
 ## Active plan
 
 <!-- SPECKIT START -->
-- **002 — AI Investigation and Commentary Layer (Block 3)** *(active)*: [specs/002-ai-investigation-commentary/plan.md](specs/002-ai-investigation-commentary/plan.md)
-  - Spec: [specs/002-ai-investigation-commentary/spec.md](specs/002-ai-investigation-commentary/spec.md)
-  - Research: [specs/002-ai-investigation-commentary/research.md](specs/002-ai-investigation-commentary/research.md)
-  - Data model: [specs/002-ai-investigation-commentary/data-model.md](specs/002-ai-investigation-commentary/data-model.md)
-  - Contracts: [specs/002-ai-investigation-commentary/contracts/](specs/002-ai-investigation-commentary/contracts/)
-  - Quickstart: [specs/002-ai-investigation-commentary/quickstart.md](specs/002-ai-investigation-commentary/quickstart.md)
+- **003 — Review API Layer (Block 4)** *(active)*: [specs/003-review-api/plan.md](specs/003-review-api/plan.md)
+  - Spec: [specs/003-review-api/spec.md](specs/003-review-api/spec.md)
+  - Research: [specs/003-review-api/research.md](specs/003-review-api/research.md)
+  - Data model: [specs/003-review-api/data-model.md](specs/003-review-api/data-model.md)
+  - Contracts: [specs/003-review-api/contracts/](specs/003-review-api/contracts/)
+  - Quickstart: [specs/003-review-api/quickstart.md](specs/003-review-api/quickstart.md)
+- **002 — AI Investigation and Commentary Layer (Block 3)** *(implemented)*: [specs/002-ai-investigation-commentary/plan.md](specs/002-ai-investigation-commentary/plan.md)
 - **001 — Deterministic P&L and Variance Engine (Block 1)** *(implemented)*: [specs/001-pnl-variance-engine/plan.md](specs/001-pnl-variance-engine/plan.md)
 <!-- SPECKIT END -->
 
@@ -52,3 +53,16 @@ Data access is behind the abstract `Repository` (only `FixtureRepository` in Blo
   `httpx`/API-key site. All tests use `FakeLLMProvider` — no network in the suite.
 - API key via `OPENROUTER_API_KEY` env var only — never committed, never written to the audit log.
 - All output is a proposal; accept/edit/dismiss and report assembly are out of scope.
+
+## Block 4 (review API) non-negotiables
+
+- The API computes **no financial figure** — engine/agent objects pass through verbatim. Route
+  handlers are thin; workflow logic lives in `api/services/`, never in routes; financial logic
+  lives nowhere in this layer.
+- Hexagonal: FastAPI driving adapter → `ReviewService` → engine/agent/`ReviewStore` ports. The
+  service never imports FastAPI; the `ReviewStore` port has a SQLite/SQLAlchemy adapter.
+- Lifecycle is an explicit state machine (`api/services/lifecycle.py`): invalid transitions are
+  rejected (HTTP 409), never silently allowed. Nothing is final unless `status == accepted`;
+  editing an accepted item reverts it to `drafted` (re-accept required), retaining the original.
+- Every state change appends a `ReviewAction` (actor + timestamp). The SQLite review DB is
+  config-driven and git-ignored. Tests run offline via `TestClient` + Block 3's `FakeLLMProvider`.

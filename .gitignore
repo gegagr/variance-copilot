@@ -38,3 +38,7 @@ Thumbs.db
 
 # Vendored Spec Kit tooling (not part of the application)
 /spec-kit/
+
+# Block 4 review-state DB (never commit)
+*.db
+review.db

@@ -126,3 +126,41 @@ def agent_settings():
 def audit():
     from agent.audit import AuditLog
     return AuditLog()
+
+
+# --------------------------------------------------------------------------- #
+# Block 4 (API) fixtures.
+# --------------------------------------------------------------------------- #
+def fake_draft_final(narrative="EBITDA reached {{fig:flag.current_value}}.", status="draft"):
+    from agent.fakes import final
+    return final({"status": status, "narrative": narrative, "aggregates": []})
+
+
+def fake_query(flag, period=6, scenario="current_year"):
+    from agent.fakes import tool_call
+    return tool_call("query_gl_detail",
+                     {"reporting_line": flag.reporting_line, "period": period, "scenario": scenario})
+
+
+@pytest.fixture
+def make_api_client():
+    """Build a TestClient with the provider + store overridden (offline, deterministic)."""
+    from fastapi.testclient import TestClient
+    from api.main import create_app
+    from api.deps import get_provider, get_review_store
+    from data.review_store import InMemoryReviewStore
+
+    clients = []
+
+    def _make(provider, store=None):
+        store = store or InMemoryReviewStore()
+        app = create_app()
+        app.dependency_overrides[get_provider] = lambda: provider
+        app.dependency_overrides[get_review_store] = lambda: store
+        client = TestClient(app)
+        clients.append(client)
+        return client, store
+
+    yield _make
+    for c in clients:
+        c.close()
