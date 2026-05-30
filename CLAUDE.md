@@ -9,12 +9,13 @@ Word first-class, No Real Client Data).
 ## Active plan
 
 <!-- SPECKIT START -->
-- **001 — Deterministic P&L and Variance Engine (Block 1)**: [specs/001-pnl-variance-engine/plan.md](specs/001-pnl-variance-engine/plan.md)
-  - Spec: [specs/001-pnl-variance-engine/spec.md](specs/001-pnl-variance-engine/spec.md)
-  - Research: [specs/001-pnl-variance-engine/research.md](specs/001-pnl-variance-engine/research.md)
-  - Data model: [specs/001-pnl-variance-engine/data-model.md](specs/001-pnl-variance-engine/data-model.md)
-  - Contracts: [specs/001-pnl-variance-engine/contracts/](specs/001-pnl-variance-engine/contracts/)
-  - Quickstart: [specs/001-pnl-variance-engine/quickstart.md](specs/001-pnl-variance-engine/quickstart.md)
+- **002 — AI Investigation and Commentary Layer (Block 3)** *(active)*: [specs/002-ai-investigation-commentary/plan.md](specs/002-ai-investigation-commentary/plan.md)
+  - Spec: [specs/002-ai-investigation-commentary/spec.md](specs/002-ai-investigation-commentary/spec.md)
+  - Research: [specs/002-ai-investigation-commentary/research.md](specs/002-ai-investigation-commentary/research.md)
+  - Data model: [specs/002-ai-investigation-commentary/data-model.md](specs/002-ai-investigation-commentary/data-model.md)
+  - Contracts: [specs/002-ai-investigation-commentary/contracts/](specs/002-ai-investigation-commentary/contracts/)
+  - Quickstart: [specs/002-ai-investigation-commentary/quickstart.md](specs/002-ai-investigation-commentary/quickstart.md)
+- **001 — Deterministic P&L and Variance Engine (Block 1)** *(implemented)*: [specs/001-pnl-variance-engine/plan.md](specs/001-pnl-variance-engine/plan.md)
 <!-- SPECKIT END -->
 
 ## Tech stack (Block 1)
@@ -40,3 +41,14 @@ Data access is behind the abstract `Repository` (only `FixtureRepository` in Blo
 - `FlaggedVariance` is the versioned public contract (`schema_version="1.0.0"`) — do not
   change its shape without bumping the version and the JSON Schema.
 - Mock data only; real inputs stay git-ignored.
+
+## Block 3 (agent layer) non-negotiables
+
+- The LLM emits **no digits**. It references figures/evidence by id and emits placeholders;
+  deterministic code in `agent/commentary.py` renders every number (verbatim source value or a
+  code-computed aggregate over cited rows). `agent/guards.py` rejects any stray number.
+- Ports-and-adapters: the agent core depends only on injected ports (`LLMProvider`,
+  `query_gl_detail`) and contains zero SDK/HTTP calls. `OpenRouterProvider` is the only
+  `httpx`/API-key site. All tests use `FakeLLMProvider` — no network in the suite.
+- API key via `OPENROUTER_API_KEY` env var only — never committed, never written to the audit log.
+- All output is a proposal; accept/edit/dismiss and report assembly are out of scope.

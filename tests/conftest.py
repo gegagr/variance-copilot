@@ -98,3 +98,31 @@ def tx(tid: str, gl: str, amount: str, period: int, scenario: Scenario) -> Trans
         transaction_id=tid, gl_account=gl, amount=Decimal(amount), period=period,
         scenario=scenario, entity="E1", business_unit="BU1",
     )
+
+
+# --------------------------------------------------------------------------- #
+# Block 3 (agent layer) fixtures.
+# --------------------------------------------------------------------------- #
+@pytest.fixture
+def ebitda_flag(flags6):
+    """A flagged value-line variance whose reporting line resolves to GL rows."""
+    return next(f for f in flags6 if f.reporting_line == "ebitda")
+
+
+@pytest.fixture
+def gl_tool6(cfg6):
+    from data.gl_detail_repository import GLDetailRepository
+    from agent.tools import make_gl_tool
+    return make_gl_tool(GLDetailRepository(SAMPLE_DIR), cfg6)
+
+
+@pytest.fixture
+def agent_settings():
+    from config.agent_settings import load_agent_settings
+    return load_agent_settings(CONFIG_DIR)
+
+
+@pytest.fixture
+def audit():
+    from agent.audit import AuditLog
+    return AuditLog()

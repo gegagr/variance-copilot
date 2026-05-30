@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://variance-copilot/contracts/draft/1.0.0",
+  "title": "Draft",
+  "description": "Versioned public contract: a drafted management-commentary line. A proposal only — never finalized in this block. Every number in `commentary` is code-rendered and listed in `rendered_figures`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "draft_id", "flag_id", "commentary", "evidence", "rendered_figures", "controller_input", "provenance", "llm_log_refs", "is_proposal"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "draft_id": { "type": "string", "minLength": 1 },
+    "flag_id": { "type": "string", "minLength": 1 },
+    "commentary": { "type": "string", "minLength": 1 },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/glRow" } },
+    "rendered_figures": { "type": "array", "items": { "$ref": "#/$defs/renderedFigure" } },
+    "controller_input": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["input_id", "flag_id", "text", "accepted_hypothesis"],
+          "properties": {
+            "input_id": { "type": "string" },
+            "flag_id": { "type": "string" },
+            "text": { "type": "string" },
+            "accepted_hypothesis": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["flag_id", "evidence_row_ids", "controller_input_id"],
+      "properties": {
+        "flag_id": { "type": "string" },
+        "evidence_row_ids": { "type": "array", "items": { "type": "string" } },
+        "controller_input_id": { "type": ["string", "null"] }
+      }
+    },
+    "llm_log_refs": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "is_proposal": { "const": true }
+  },
+  "$defs": {
+    "glRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transaction_id", "gl_account", "amount", "period", "scenario", "date", "labels"],
+      "properties": {
+        "transaction_id": { "type": "string" },
+        "gl_account": { "type": "string" },
+        "amount": { "type": "string", "description": "Decimal as string." },
+        "period": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "scenario": { "type": "string" },
+        "date": { "type": "string" },
+        "project": { "type": ["string", "null"] },
+        "counterparty": { "type": ["string", "null"] },
+        "labels": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "renderedFigure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "source", "value", "origin"],
+      "properties": {
+        "token": { "type": "string" },
+        "source": { "enum": ["block1", "gl", "aggregate"] },
+        "value": { "type": "string", "description": "Decimal as string." },
+        "origin": { "type": "string" }
+      }
+    }
+  }
+}

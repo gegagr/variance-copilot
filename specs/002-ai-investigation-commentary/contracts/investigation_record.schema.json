@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://variance-copilot/contracts/investigation_record/1.0.0",
+  "title": "InvestigationRecord",
+  "description": "Versioned public contract: one record per flag. Links the variance, the embedded GL evidence snapshot, the hypothesis, and a Question or Draft. The top-level Block 3 output consumed by the (future) review/UI layer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "flag_id", "variance", "status", "evidence", "hypothesis", "question", "draft", "llm_log_refs"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "flag_id": { "type": "string", "minLength": 1 },
+    "variance": {
+      "type": "object",
+      "description": "The Block 1 FlaggedVariance (validated by its own contract, schema_version 1.0.0).",
+      "required": ["schema_version", "flag_id"]
+    },
+    "status": { "enum": ["question", "draft"] },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["transaction_id", "gl_account", "amount", "period", "scenario", "date", "labels"],
+        "properties": {
+          "transaction_id": { "type": "string" },
+          "gl_account": { "type": "string" },
+          "amount": { "type": "string" },
+          "period": { "type": "integer", "minimum": 1, "maximum": 12 },
+          "scenario": { "type": "string" },
+          "date": { "type": "string" },
+          "project": { "type": ["string", "null"] },
+          "counterparty": { "type": ["string", "null"] },
+          "labels": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "hypothesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "evidence_row_ids"],
+      "properties": {
+        "text": { "type": ["string", "null"] },
+        "evidence_row_ids": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "question": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "https://variance-copilot/contracts/question/1.0.0" }
+      ]
+    },
+    "draft": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "https://variance-copilot/contracts/draft/1.0.0" }
+      ]
+    },
+    "llm_log_refs": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "question" } } },
+      "then": { "properties": { "question": { "not": { "type": "null" } } } }
+    },
+    {
+      "if": { "properties": { "status": { "const": "draft" } } },
+      "then": { "properties": { "draft": { "not": { "type": "null" } } } }
+    }
+  ]
+}

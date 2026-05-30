@@ -48,6 +48,28 @@ All structure lives in `config/*.csv` (Constitution Principle V):
 
 Re-run the pipeline; no Python change required.
 
+## Block 3 — AI investigation & commentary layer (`agent/`)
+
+Turns Block 1's flags into explained commentary. Ports-and-adapters: the agent core depends
+only on injected ports (`LLMProvider`, `query_gl_detail`) and contains **no SDK/HTTP calls**.
+
+- **`agent/`** — `models.py` (versioned InvestigationRecord/Question/Draft), `provider.py`
+  (LLMProvider port + OpenRouter adapter — the only `httpx`/key site), `tools.py`
+  (`query_gl_detail`), `investigate.py` (loop), `commentary.py` (reference→render),
+  `guards.py` (traceability guard), `audit.py` (JSON-lines log), `fakes.py` (offline tests).
+- The LLM **emits no digits**: it references figures by token and deterministic code renders
+  every number (verbatim source value or a code-computed aggregate). `guards.py` rejects any
+  stray number. All output is a proposal; accept/edit/dismiss is out of scope.
+
+Run live (needs `OPENROUTER_API_KEY`):
+
+```bash
+export OPENROUTER_API_KEY=sk-...
+uv run python -m shell.investigate_pipeline --current-period 6 --out build/investigations.jsonl
+```
+
+The whole test suite runs offline with a `FakeLLMProvider` — no key, no network.
+
 ## Guarantees (enforced by tests)
 
 - **Deterministic** — identical inputs + config produce byte-identical output (`test_determinism.py`).

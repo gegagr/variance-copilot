@@ -19,4 +19,20 @@ Constitution guards: Principle I (Determinism) → `test_determinism.py`; Princi
 (Auditability) → `test_traceability.py`; functional-core purity / no-LLM →
 `test_architecture.py`; FR-017 public contract drift → `test_contract_flagged_variance.py`.
 
+## Block 3 (AI investigation layer) — Success Criteria traceability
+
+| SC | Criterion | Covering test(s) |
+|----|-----------|------------------|
+| SC-001 | No untraceable numbers (numbers trace to source or recomputed aggregate) | `test_guards.py` (all), `test_commentary.py::test_render_computes_aggregate` |
+| SC-002 | Questions reference specific GL evidence, not generic | `test_contract_question.py::test_question_references_evidence_and_links_log` |
+| SC-003 | Drafts record provenance (variance + evidence + controller input) | `test_contract_draft.py`, `test_commentary.py::test_draft_from_controller_reflects_response` |
+| SC-004 | Self-explanatory → Draft with no question | `test_contract_draft.py::test_self_explanatory_draft_validates` |
+| SC-005 | Sparse evidence → open question, no invented driver | `test_investigate_loop.py::test_sparse_evidence_yields_open_question` |
+| SC-006 | Audit completeness + key never logged + output linkage | `test_audit.py` (all) |
+| SC-007 | One record per flag; never finalizes (is_proposal) | `test_contract_investigation.py::test_one_record_per_flag`, `test_contract_draft.py` |
+| SC-008 | Outputs validate against versioned schemas | `test_contract_{investigation,question,draft}.py` |
+
+Block 3 constitution guards: no LLM-produced numbers → `test_guards.py`; no SDK in agent core →
+`test_agent_architecture.py`; fail-safe + bounded retry → `test_investigate_loop.py`.
+
 Run: `uv run pytest`

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://variance-copilot/contracts/question/1.0.0",
+  "title": "Question",
+  "description": "Versioned public contract: a grounded question posed to the controller. Every number in `text` is rendered by code and listed in `rendered_figures`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "question_id", "flag_id", "text", "hypothesis", "evidence", "rendered_figures", "llm_log_refs"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "question_id": { "type": "string", "minLength": 1 },
+    "flag_id": { "type": "string", "minLength": 1 },
+    "text": { "type": "string", "minLength": 1 },
+    "hypothesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "evidence_row_ids"],
+      "properties": {
+        "text": { "type": ["string", "null"] },
+        "evidence_row_ids": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/glRow" } },
+    "rendered_figures": { "type": "array", "items": { "$ref": "#/$defs/renderedFigure" } },
+    "llm_log_refs": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+  },
+  "$defs": {
+    "glRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transaction_id", "gl_account", "amount", "period", "scenario", "date", "labels"],
+      "properties": {
+        "transaction_id": { "type": "string" },
+        "gl_account": { "type": "string" },
+        "amount": { "type": "string", "description": "Decimal as string." },
+        "period": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "scenario": { "type": "string" },
+        "date": { "type": "string" },
+        "project": { "type": ["string", "null"] },
+        "counterparty": { "type": ["string", "null"] },
+        "labels": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "renderedFigure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "source", "value", "origin"],
+      "properties": {
+        "token": { "type": "string" },
+        "source": { "enum": ["block1", "gl", "aggregate"] },
+        "value": { "type": "string", "description": "Decimal as string." },
+        "origin": { "type": "string" }
+      }
+    }
+  }
+}
