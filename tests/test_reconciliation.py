@@ -44,14 +44,14 @@ def test_margins_equal_numerator_over_base(result6, cfg6):
                     assert got == (num / base).quantize(Decimal(1).scaleb(-rp))
 
 
-def test_ties_to_source_zero_residual(result6, transactions):
-    """Each leaf cell equals the independent sum of its source transactions."""
+def test_ties_to_source_zero_residual(result6, transactions, cfg6):
+    """Each detail (leaf) cell equals the independent sum of its source transactions."""
     cells = cells_by_key(result6)
-    coa = {"4000": "revenue", "4001": "revenue", "5000": "cogs",
-           "6000": "opex", "6001": "opex", "7000": "depreciation"}
+    coa = {row.gl_account: row.reporting_line for row in cfg6.coa}  # from config, not hardcoded
+    detail_lines = [r.reporting_line for r in cfg6.layout if r.line_type in (LineType.REVENUE, LineType.COST)]
     p = result6.current_period
 
-    for line in ("revenue", "cogs", "opex", "depreciation"):
+    for line in detail_lines:
         for scenario in SCENARIO_ORDER:
             for tc in TIMECUT_ORDER:
                 expected = Decimal(0)
@@ -66,12 +66,12 @@ def test_ties_to_source_zero_residual(result6, transactions):
     assert result6.reconciliation.residual == Decimal("0.00")
 
 
-def test_grand_total_ebit_ties_to_all_mapped_transactions(result6, transactions):
-    """EBIT (sum of every leaf) over the full year ties to the source totals."""
+def test_grand_total_net_result_ties_to_all_mapped_transactions(result6, transactions):
+    """Net result (sum of every detail line) over the full year ties to the source totals."""
     cells = cells_by_key(result6)
     # Prior-year full year is pure actuals across all 12 periods.
     expected = sum(
         (t.amount for t in transactions if t.scenario == Scenario.PRIOR_YEAR),
         Decimal(0),
     )
-    assert cells[("ebit", Scenario.PRIOR_YEAR, TimeCut.FULL_YEAR)].value == expected
+    assert cells[("net_result", Scenario.PRIOR_YEAR, TimeCut.FULL_YEAR)].value == expected

@@ -12,31 +12,29 @@ def test_variances_view_has_display_strings(make_api_client):
     client, _ = make_api_client(FakeLLMProvider([]))
     items = client.get("/variances/view", params={"current_period": 6}).json()
     assert items
-    eb = next(f for f in items if f["reporting_line"] == "ebitda" and f["time_cut"] == "ytd"
+    eb = next(f for f in items if f["reporting_line"] == "it_costs" and f["time_cut"] == "ytd"
               and f["scenario_pair"] == "current_vs_prior_year")
     # display strings equal format.* of the raw values
     assert eb["current_display"] == fmt.money(Decimal(eb["current_value"]))
     assert eb["comparator_display"] == fmt.money(Decimal(eb["comparator_value"]))
     assert eb["abs_display"] == fmt.money(Decimal(eb["abs_variance"]))
     assert eb["pct_display"] == fmt.percent(Decimal(eb["pct_variance"]))
-    assert eb["current_display"] == "€78,600.00"  # known EBITDA YTD figure
+    # it_costs YTD current = -€45,000.00 (months 1-5 @ -6k + month 6 @ -15k)
+    assert eb["current_display"] == "€-45,000.00"
 
 
-def test_margin_view_uses_percent_and_points(make_api_client):
+def test_no_subtotal_or_margin_rows_are_flagged(make_api_client):
+    """Only detail lines are flagged, so the served view never contains a subtotal/margin row."""
     client, _ = make_api_client(FakeLLMProvider([]))
     items = client.get("/variances/view", params={"current_period": 6}).json()
-    margins = [f for f in items if f["line_type"] == "margin"]
-    if margins:  # margin lines flag on pp
-        m = margins[0]
-        assert m["pp_display"] is not None and m["pp_display"].endswith(" pp")
-        assert m["current_display"].endswith("%")
-        assert m["abs_display"] is None and m["pct_display"] is None
+    assert items
+    assert all(f["line_type"] in ("revenue", "cost") for f in items)
 
 
 def test_pnl_view_cells_have_display(make_api_client):
     client, _ = make_api_client(FakeLLMProvider([]))
     view = client.get("/pnl/view", params={"current_period": 6, "time_cut": "ytd"}).json()
-    revenue = next(l for l in view["lines"] if l["reporting_line"] == "revenue")
+    revenue = next(l for l in view["lines"] if l["reporting_line"] == "external_revenue")
     for cell in revenue["cells"]:
         assert cell["display"].startswith("€")
     margin = next(l for l in view["lines"] if l["line_type"] == "margin")

@@ -105,8 +105,16 @@ def tx(tid: str, gl: str, amount: str, period: int, scenario: Scenario) -> Trans
 # --------------------------------------------------------------------------- #
 @pytest.fixture
 def ebitda_flag(flags6):
-    """A flagged value-line variance whose reporting line resolves to GL rows."""
-    return next(f for f in flags6 if f.reporting_line == "ebitda")
+    """A flagged DETAIL-line variance whose reporting line resolves to GL rows.
+
+    (Named historically `ebitda_flag`; ebitda is now a subtotal and is never flagged, so this
+    points at a representative flagged detail line — IT costs, which carries a real anomaly.)
+    """
+    return next(
+        f for f in flags6
+        if f.reporting_line == "it_costs" and f.time_cut.value == "ytd"
+        and f.scenario_pair.value == "current_vs_prior_year"
+    )
 
 
 @pytest.fixture

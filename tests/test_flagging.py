@@ -18,6 +18,15 @@ def _value_variance(abs_v, pct_v, line_type=LineType.REVENUE):
     )
 
 
+def _subtotal_variance(abs_v, pct_v):
+    return Variance(
+        reporting_line="s", line_type=LineType.SUBTOTAL, time_cut=TimeCut.YTD,
+        scenario_pair=ScenarioPair.CURRENT_VS_BUDGET,
+        current_value=Decimal("100"), comparator_value=Decimal("100"),
+        abs_variance=Decimal(abs_v), pct_variance=Decimal(pct_v), direction="favorable",
+    )
+
+
 def _margin_variance(pp_v):
     return Variance(
         reporting_line="m", line_type=LineType.MARGIN, time_cut=TimeCut.YTD,
@@ -28,7 +37,7 @@ def _margin_variance(pp_v):
 
 
 def test_value_line_flags_only_when_both_abs_and_pct_breach(cfg6):
-    # thresholds: abs 10000, pct 0.05
+    # thresholds: abs 4000, pct 0.05
     both = _value_variance("20000", "0.10")          # both breach -> flag
     only_abs = _value_variance("20000", "0.01")      # pct below -> no flag
     only_pct = _value_variance("500", "0.10")        # abs below -> no flag
@@ -37,13 +46,19 @@ def test_value_line_flags_only_when_both_abs_and_pct_breach(cfg6):
     assert flags[0].abs_variance == Decimal("20000")
 
 
-def test_margin_line_flags_on_percentage_points(cfg6):
-    breach = _margin_variance("0.02")    # >= 0.01 pp -> flag
-    no_breach = _margin_variance("0.005")  # below -> no flag
-    flags = flag_variances([breach, no_breach], cfg6)
+def test_subtotals_and_margins_are_never_flagged(cfg6):
+    """Only detail lines are flagged; roll-ups (subtotal/margin) never are, even when material."""
+    subtotal = _subtotal_variance("50000", "0.50")   # huge breach, but it's a subtotal
+    margin = _margin_variance("0.20")                 # huge pp move, but it's a margin
+    detail = _value_variance("20000", "0.10", LineType.COST)  # a detail line -> flags
+    flags = flag_variances([subtotal, margin, detail], cfg6)
     assert len(flags) == 1
-    assert flags[0].line_type is LineType.MARGIN
-    assert flags[0].pp_variance == Decimal("0.02")
+    assert flags[0].line_type is LineType.COST
+
+
+def test_real_flags_are_all_detail_lines(flags6):
+    assert flags6
+    assert all(f.line_type in (LineType.REVENUE, LineType.COST) for f in flags6)
 
 
 def test_flag_has_all_required_fields(flags6):

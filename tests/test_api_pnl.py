@@ -41,9 +41,10 @@ def test_variances_served_verbatim(make_api_client):
 def test_no_figure_altered_specific_value(make_api_client):
     client, _ = make_api_client(FakeLLMProvider([]))
     flags = client.get("/variances", params={"current_period": 6}).json()
-    ebitda = next(f for f in flags if f["reporting_line"] == "ebitda" and f["time_cut"] == "ytd")
-    # current EBITDA YTD = 78600.00 (Block 1) — served as the exact decimal string, not recomputed.
-    assert ebitda["current_value"] == "78600.00"
+    it = next(f for f in flags if f["reporting_line"] == "it_costs" and f["time_cut"] == "ytd"
+              and f["scenario_pair"] == "current_vs_prior_year")
+    # IT costs YTD current = -45000.00 (Block 1) — served as the exact decimal string, not recomputed.
+    assert it["current_value"] == "-45000.00"
 
 
 def test_no_arithmetic_in_api_source():

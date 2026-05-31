@@ -1,9 +1,10 @@
 """flag_variances: materiality flagging against configurable thresholds (pure).
 
-Combination logic (clarified): a VALUE line (revenue | cost | subtotal) is flagged
-only when its absolute AND its percentage variance breach their thresholds
-(de-minimis guard); a MARGIN line is flagged when its percentage-point variance
-breaches the pp threshold. Each flag is a versioned :class:`FlaggedVariance`.
+Only DETAIL lines (revenue | cost leaf lines) are flagged for investigation — a detail line
+is flagged when its absolute AND its percentage variance breach their thresholds (de-minimis
+guard). Subtotals and margins are NEVER flagged (they are roll-ups of detail lines; the agent
+investigates the underlying detail). Variances are still computed for every row for the grid;
+flagging is the narrower act. Each flag is a versioned :class:`FlaggedVariance`.
 """
 
 from __future__ import annotations
@@ -17,9 +18,8 @@ from engine.models import (
     Variance,
 )
 
-
-def _category(line_type: LineType) -> str:
-    return "margin" if line_type is LineType.MARGIN else "value"
+# Only these line types are detail lines eligible for flagging.
+DETAIL_LINE_TYPES = (LineType.REVENUE, LineType.COST)
 
 
 def flag_variances(variances: list[Variance], config: EngineConfig) -> list[FlaggedVariance]:
@@ -35,23 +35,21 @@ def flag_variances(variances: list[Variance], config: EngineConfig) -> list[Flag
 
     flags: list[FlaggedVariance] = []
     for v in ordered:
+        # Only detail lines are flagged — never subtotals or margins.
+        if v.line_type not in DETAIL_LINE_TYPES:
+            continue
         if v.direction not in ("favorable", "unfavorable"):
             continue  # neutral / no movement never flags
-        rule = rules.get(_category(v.line_type))
+        rule = rules.get("value")
         if rule is None:
             continue
 
-        if v.line_type is LineType.MARGIN:
-            if v.pp_variance is None:
-                continue
-            breach = abs(v.pp_variance) >= rule.pp_threshold
-        else:
-            if v.abs_variance is None or v.pct_variance is None:
-                continue  # percentage not meaningful (zero comparator) -> cannot confirm both
-            breach = (
-                abs(v.abs_variance) >= rule.abs_threshold
-                and abs(v.pct_variance) >= rule.pct_threshold
-            )
+        if v.abs_variance is None or v.pct_variance is None:
+            continue  # percentage not meaningful (zero comparator) -> cannot confirm both
+        breach = (
+            abs(v.abs_variance) >= rule.abs_threshold
+            and abs(v.pct_variance) >= rule.pct_threshold
+        )
 
         if not breach:
             continue

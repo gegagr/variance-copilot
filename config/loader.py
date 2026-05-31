@@ -67,6 +67,7 @@ def load_config(config_dir: Path, current_period: Optional[int] = None) -> Engin
             reporting_line=r["reporting_line"],
             order=int(r["order"]),
             line_type=LineType(r["line_type"]),
+            display_label=r.get("display_label", "") or r["reporting_line"],
             components=[c for c in r.get("components", "").split(COMPONENT_SEP) if c],
             margin_numerator=_opt(r.get("margin_numerator", "")),
             margin_base=_opt(r.get("margin_base", "")),

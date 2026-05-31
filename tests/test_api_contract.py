@@ -29,12 +29,12 @@ def test_review_item_view_shape(make_api_client):
 def test_record_validates_against_block3_contract(make_api_client):
     from agent.fakes import final, tool_call
     provider = FakeLLMProvider([
-        tool_call("query_gl_detail", {"reporting_line": "ebitda", "period": 6, "scenario": "current_year"}),
+        tool_call("query_gl_detail", {"reporting_line": "it_costs", "period": 6, "scenario": "current_year"}),
         final({"status": "draft", "narrative": "EBITDA at {{fig:flag.current_value}}.", "aggregates": []}),
     ])
     client, _ = make_api_client(provider)
     fid = next(f["flag_id"] for f in client.get("/variances", params={"current_period": 6}).json()
-               if f["reporting_line"] == "ebitda" and f["time_cut"] == "ytd")
+               if f["reporting_line"] == "it_costs" and f["time_cut"] == "ytd")
     body = client.post(f"/review/{fid}/investigate").json()
     InvestigationRecord.model_validate(body["record"])  # served record is the Block 3 contract
 

@@ -39,6 +39,7 @@ class PnLLayoutRow(BaseModel):
     reporting_line: str
     order: int
     line_type: LineType
+    display_label: str = ""             # human-readable label for the grid
     components: list[str] = []          # subtotals only
     margin_numerator: Optional[str] = None  # margins only
     margin_base: Optional[str] = None       # margins only

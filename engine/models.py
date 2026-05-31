@@ -109,6 +109,7 @@ class PnLLine(BaseModel):
     order: int
     line_type: LineType
     cells: list[PnLCell]
+    display_label: str = ""
 
 
 class ReconciliationStatus(BaseModel):

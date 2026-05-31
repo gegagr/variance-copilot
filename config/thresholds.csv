@@ -1,3 +1,2 @@
 rule_id,applies_to,abs_threshold,pct_threshold,pp_threshold
-value_default,value,10000.00,0.050000,0.000000
-margin_default,margin,0.00,0.000000,0.010000
+value_default,value,4000.00,0.050000,0.000000

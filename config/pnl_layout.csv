@@ -1,10 +1,27 @@
-reporting_line,order,line_type,components,margin_numerator,margin_base
-revenue,1,revenue,,,
-cogs,2,cost,,,
-gross_profit,3,subtotal,revenue;cogs,,
-gross_margin_pct,4,margin,,gross_profit,revenue
-opex,5,cost,,,
-ebitda,6,subtotal,gross_profit;opex,,
-ebitda_margin_pct,7,margin,,ebitda,revenue
-depreciation,8,cost,,,
-ebit,9,subtotal,ebitda;depreciation,,
+reporting_line,order,line_type,display_label,components,margin_numerator,margin_base
+external_revenue,1,revenue,External revenue,,,
+internal_revenue,2,revenue,Internal revenue,,,
+total_revenue,3,subtotal,Total revenue,external_revenue;internal_revenue,,
+subcontracting_costs,4,cost,Subcontracting costs,,,
+business_development_costs,5,cost,Business development costs,,,
+travel_costs,6,cost,Travel costs,,,
+media_space_costs,7,cost,Media space costs,,,
+gross_margin,8,subtotal,Gross margin,total_revenue;subcontracting_costs;business_development_costs;travel_costs;media_space_costs,,
+gross_margin_pct,9,margin,Gross margin %,,gross_margin,total_revenue
+staff_costs,10,cost,Staff costs,,,
+non_staff_costs,11,cost,Non-staff costs,,,
+partners_costs,12,cost,Partners costs,,,
+other_direct_costs,13,cost,Other direct costs,,,
+net_contribution,14,subtotal,Net contribution,gross_margin;staff_costs;non_staff_costs;partners_costs;other_direct_costs,,
+net_contribution_pct,15,margin,Net contribution %,,net_contribution,total_revenue
+admin_staff_costs,16,cost,Admin staff costs,,,
+legal_costs,17,cost,Legal costs,,,
+it_costs,18,cost,IT costs,,,
+premises,19,cost,Premises,,,
+ebitda,20,subtotal,EBITDA,net_contribution;admin_staff_costs;legal_costs;it_costs;premises,,
+ebitda_margin_pct,21,margin,EBITDA margin %,,ebitda,total_revenue
+depreciation_amortisation,22,cost,D&A,,,
+ebit,23,subtotal,EBIT,ebitda;depreciation_amortisation,,
+interest,24,cost,Interest,,,
+tax,25,cost,Tax,,,
+net_result,26,subtotal,Net result,ebit;interest;tax,,

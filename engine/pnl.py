@@ -144,6 +144,7 @@ def build_pnl(transactions: list[Transaction], config: EngineConfig) -> PnLResul
                 order=row.order,
                 line_type=row.line_type,
                 cells=cells,
+                display_label=row.display_label or row.reporting_line,
             )
         )
 

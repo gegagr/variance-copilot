@@ -20,40 +20,40 @@ def _find(variances, line, tc, pair) -> Variance:
 
 
 def test_absolute_variance_is_current_minus_comparator(variances6):
-    v = _find(variances6, "revenue", TimeCut.YTD, ScenarioPair.CURRENT_VS_PRIOR_YEAR)
-    # revenue YTD: current 161280, prior 144000.
-    assert v.current_value == Decimal("161280.00")
-    assert v.comparator_value == Decimal("144000.00")
-    assert v.abs_variance == Decimal("17280.00")
+    # external_revenue current month: current 215000 (revenue-mix dip), prior 230000.
+    v = _find(variances6, "external_revenue", TimeCut.CURRENT_MONTH, ScenarioPair.CURRENT_VS_PRIOR_YEAR)
+    assert v.current_value == Decimal("215000.00")
+    assert v.comparator_value == Decimal("230000.00")
+    assert v.abs_variance == Decimal("-15000.00")
 
 
 def test_percentage_uses_absolute_denominator(variances6):
-    v = _find(variances6, "revenue", TimeCut.YTD, ScenarioPair.CURRENT_VS_PRIOR_YEAR)
-    assert v.pct_variance == (Decimal("17280.00") / Decimal("144000.00")).quantize(Decimal("0.000001"))
+    v = _find(variances6, "external_revenue", TimeCut.CURRENT_MONTH, ScenarioPair.CURRENT_VS_PRIOR_YEAR)
+    assert v.pct_variance == (Decimal("-15000.00") / Decimal("230000.00")).quantize(Decimal("0.000001"))
 
 
 def test_negative_comparator_keeps_intuitive_magnitude(variances6):
-    """cogs is negative; % must use |comparator| so the sign isn't flipped."""
-    v = _find(variances6, "cogs", TimeCut.YTD, ScenarioPair.CURRENT_VS_PRIOR_YEAR)
-    # current -50880, prior -48000 -> abs var -2880 ; pct = -2880/48000 = -0.06
-    assert v.abs_variance == Decimal("-2880.00")
-    assert v.pct_variance == Decimal("-0.060000")
+    """subcontracting is negative; % must use |comparator| so the sign isn't flipped."""
+    v = _find(variances6, "subcontracting_costs", TimeCut.CURRENT_MONTH, ScenarioPair.CURRENT_VS_PRIOR_YEAR)
+    # current -15000 (Atlas ramp-up), prior -10000 -> abs -5000 ; pct = -5000/10000 = -0.5
+    assert v.abs_variance == Decimal("-5000.00")
+    assert v.pct_variance == Decimal("-0.500000")
 
 
 def test_margin_variance_is_percentage_points(variances6):
-    v = _find(variances6, "gross_margin_pct", TimeCut.YTD, ScenarioPair.CURRENT_VS_PRIOR_YEAR)
+    v = _find(variances6, "gross_margin_pct", TimeCut.CURRENT_MONTH, ScenarioPair.CURRENT_VS_PRIOR_YEAR)
     assert v.line_type is LineType.MARGIN
     assert v.abs_variance is None and v.pct_variance is None
-    # 0.684524 - 0.666667 = 0.017857
-    assert v.pp_variance == Decimal("0.017857")
+    # gm% current 226000/275000=0.821818 ; prior 245000/275000=0.890909 -> -0.069091 pp
+    assert v.pp_variance == Decimal("-0.069091")
 
 
 def test_favorable_unfavorable_by_line_type(variances6):
-    rev = _find(variances6, "revenue", TimeCut.YTD, ScenarioPair.CURRENT_VS_PRIOR_YEAR)
-    cogs = _find(variances6, "cogs", TimeCut.YTD, ScenarioPair.CURRENT_VS_PRIOR_YEAR)
-    # Revenue up -> favorable; cost more negative (higher spend) -> unfavorable.
-    assert rev.direction == "favorable"
-    assert cogs.direction == "unfavorable"
+    # Revenue down vs prior -> unfavorable; staff costs UNDER budget (less spend) -> favorable.
+    rev = _find(variances6, "external_revenue", TimeCut.CURRENT_MONTH, ScenarioPair.CURRENT_VS_PRIOR_YEAR)
+    staff = _find(variances6, "staff_costs", TimeCut.CURRENT_MONTH, ScenarioPair.CURRENT_VS_BUDGET)
+    assert rev.direction == "unfavorable"
+    assert staff.direction == "favorable"
 
 
 def test_zero_comparator_marked_not_meaningful():
