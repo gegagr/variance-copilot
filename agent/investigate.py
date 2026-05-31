@@ -64,6 +64,8 @@ def _system_messages(flag: FlaggedVariance, pnl: PnLResult) -> list[dict]:
             "content": (
                 "You are a finance controller's assistant investigating a flagged P&L variance. "
                 "Use query_gl_detail to gather evidence, then call emit_investigation. "
+                "When you query, pass the flag's own time_cut and scenario_pair (shown below) "
+                "as query_gl_detail arguments — do NOT invent a period number or scenario name. "
                 "NEVER write a number: reference every figure by token "
                 "({{fig:flag.<field>}}, {{fig:gl:<txn_id>.amount}}, {{fig:agg:<id>}})."
             ),

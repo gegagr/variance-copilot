@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from agent.models import GLQuery
 from agent.tools import gl_accounts_for, query_gl_detail
 from data.gl_detail_repository import GLDetailRepository
@@ -43,3 +45,34 @@ def test_canonical_row_order(cfg6):
     res = query_gl_detail(_repo(), cfg6, GLQuery(reporting_line="external_revenue", period=3, scenario="prior_year"))
     ids = [r.transaction_id for r in res.rows]
     assert ids == sorted(ids)
+
+
+def test_flag_dimensions_map_to_data_columns(cfg6):
+    """A flag carries time_cut/scenario_pair, not period/scenario; the query must translate.
+
+    current_month (current_period=6) -> period 6; current_vs_prior_year -> the CURRENT side
+    = current-year actuals. The slice must include both the recurring media buy and the
+    late-booked €8k 'Campaign Mar-2026' row, all from scenario == current_year.
+    """
+    res = query_gl_detail(
+        _repo(), cfg6,
+        GLQuery(reporting_line="media_space_costs",
+                time_cut="current_month", scenario_pair="current_vs_prior_year"),
+    )
+    assert res.rows, "flag-dimension query returned zero rows (mapping is broken)"
+    assert all(r.scenario == "current_year" and r.period == 6 for r in res.rows)
+    assert {r.gl_account for r in res.rows} == {"5300"}
+    # the deliberate anomaly: the €8k March-labelled campaign booked in period 6
+    campaign = next(r for r in res.rows if "Campaign Mar-2026" in r.labels)
+    assert campaign.amount == Decimal("-8000.00")
+
+
+def test_time_cut_ytd_spans_periods_one_through_current(cfg6):
+    """YTD must resolve to periods 1..6 of current-year actuals (mirrors the engine)."""
+    res = query_gl_detail(
+        _repo(), cfg6,
+        GLQuery(reporting_line="media_space_costs",
+                time_cut="ytd", scenario_pair="current_vs_prior_year"),
+    )
+    assert {r.period for r in res.rows} == {1, 2, 3, 4, 5, 6}
+    assert all(r.scenario == "current_year" for r in res.rows)

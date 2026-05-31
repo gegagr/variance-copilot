@@ -51,9 +51,28 @@ class GLEvidenceRow(BaseModel):
 
 
 class GLQuery(BaseModel):
+    """A read-only request for the GL rows behind a reporting line.
+
+    Two equivalent ways to select the slice; ``query_gl_detail`` resolves either,
+    mirroring exactly how the engine's aggregation resolves the same dimensions:
+
+    * **Explicit form** — concrete data-column values: ``period`` (1..12) and
+      ``scenario`` (``current_year``/``prior_year``/``budget``).
+    * **Flag form** — the variance's own dimensions: ``time_cut`` (e.g. ``current_month``)
+      and ``scenario_pair`` (e.g. ``current_vs_prior_year``), resolved against
+      ``current_period``. The *current* side of every comparison is current-year actuals,
+      so a bare ``scenario_pair`` resolves to ``scenario == current_year`` — never a
+      literal scenario named after the pair.
+    """
+
     reporting_line: str
-    period: int
-    scenario: str
+    # Explicit form (concrete data columns).
+    period: Optional[int] = None
+    scenario: Optional[str] = None
+    # Flag form (resolved deterministically, mirroring the engine).
+    time_cut: Optional[str] = None
+    scenario_pair: Optional[str] = None
+    current_period: Optional[int] = None
     filters: Optional[dict] = None
 
 
