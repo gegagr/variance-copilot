@@ -207,6 +207,33 @@ def test_grounded_query_returns_rows_even_if_model_would_pass_wrong_scenario(fla
     assert all(r.gl_account == "7200" and r.period == 6 and r.scenario == "current_year" for r in rows)
 
 
+def test_aggregate_unknown_row_id_retries_then_recovers(flags6, result6, gl_tool6, agent_settings, audit):
+    """The model hallucinates an aggregate row id ('647091'); the bounded retry feeds back the
+    error (naming valid ids) and a corrected emit citing a real evidence id renders."""
+    flag = _flag(flags6, "it_costs")
+    bad = final({"status": "draft", "narrative": "Total {{fig:agg:total_amount}}.",
+                 "aggregates": [{"agg_id": "total_amount", "op": "sum", "row_ids": ["647091"]}]})
+    good = final({"status": "draft", "narrative": "Driver {{fig:gl:current_year-7200-P06-2.amount}}.",
+                  "aggregates": []})
+    provider = FakeLLMProvider([tool_call("query_gl_detail", {}), bad, good])
+    record = investigate(flag, result6, provider=provider, gl_tool=gl_tool6,
+                         settings=agent_settings, audit=audit, now="t")
+    assert record is not None and record.status is RecordStatus.DRAFT
+    assert any(rf.origin == "current_year-7200-P06-2" for rf in record.draft.rendered_figures)
+
+
+def test_persistent_aggregate_hallucination_fails_safe_naming_id(flags6, result6, gl_tool6,
+                                                                 agent_settings, audit):
+    flag = _flag(flags6, "it_costs")
+    bad = final({"status": "draft", "narrative": "Total {{fig:agg:total_amount}}.",
+                 "aggregates": [{"agg_id": "total_amount", "op": "sum", "row_ids": ["647091"]}]})
+    provider = FakeLLMProvider([tool_call("query_gl_detail", {}), bad, bad])  # retry budget = 1
+    record = investigate(flag, result6, provider=provider, gl_tool=gl_tool6,
+                         settings=agent_settings, audit=audit, now="t")
+    assert record is None
+    assert any("647091" in e for e in _errors(audit))  # the visible reason names the bad id
+
+
 def test_draft_omitting_existing_evidence_is_flagged(flags6, result6, gl_tool6, agent_settings, audit):
     """A self-explanatory draft emitted WITHOUT gathering evidence — while GL rows exist for the
     line/period — is a bug the check catches."""

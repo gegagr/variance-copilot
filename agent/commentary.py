@@ -131,6 +131,18 @@ def render_output(payload: EmitPayload, evidence: list[GLEvidenceRow], flag):
             "(op over row_ids) and cite it as {{fig:agg:<id>}}"
         )
     rows_by_id = {r.transaction_id: r for r in evidence}
+
+    # Aggregate row_ids must be a SUBSET of the gathered evidence — the model may not invent ids.
+    valid_ids = sorted(rows_by_id)
+    for spec in payload.aggregates:
+        unknown = [rid for rid in spec.row_ids if rid not in rows_by_id]
+        if unknown:
+            raise RenderError(
+                f"aggregate {spec.agg_id!r} cites row id(s) not in the gathered evidence: "
+                f"{', '.join(unknown)}; row_ids must be copied verbatim from the returned "
+                f"transaction ids: {', '.join(valid_ids) if valid_ids else '(no evidence gathered)'}"
+            )
+
     agg_specs = {a.agg_id: a for a in payload.aggregates}
     agg_values = {a.agg_id: _compute_aggregate(a, rows_by_id) for a in payload.aggregates}
     allowed = build_allowed(flag, evidence, agg_values)

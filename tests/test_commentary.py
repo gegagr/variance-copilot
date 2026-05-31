@@ -85,6 +85,22 @@ def test_aggregate_must_be_structured_not_expression():
         )
 
 
+def test_aggregate_with_unknown_row_id_rejected_cleanly(ebitda_flag):
+    """An aggregate citing a hallucinated row id (e.g. '647091') fails, naming the bad id and the
+    valid evidence ids — it is never silently computed."""
+    payload = EmitPayload(
+        status="draft",
+        narrative="Total {{fig:agg:total_amount}}.",
+        aggregates=[AggregateSpec(agg_id="total_amount", op=AggregateOp.SUM, row_ids=["T1", "647091"])],
+    )
+    with pytest.raises(commentary.RenderError) as exc:
+        commentary.render_output(payload, _rows(), ebitda_flag)
+    msg = str(exc.value)
+    assert "647091" in msg          # names the offending id
+    assert "T1" in msg and "T2" in msg  # lists the valid evidence ids
+    assert "verbatim" in msg
+
+
 def test_wellformed_emit_with_valid_tokens_renders(ebitda_flag):
     """A well-formed emit (flag + GL + aggregate tokens) renders to grounded figures, no leftovers."""
     payload = EmitPayload(

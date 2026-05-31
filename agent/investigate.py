@@ -76,8 +76,10 @@ EMIT_INVESTIGATION_TOOL: dict = {
                 },
                 "aggregates": {
                     "type": "array",
-                    "description": "STRUCTURED aggregates only — never a string or an arithmetic "
-                    "expression. Each item computes one value the code evaluates over cited rows.",
+                    "description": "STRUCTURED multi-row totals only — never a string or arithmetic "
+                    "expression. Use ONLY for a genuine total/count over several rows; for a single "
+                    "driver's amount use {{fig:gl:<txn_id>.amount}} instead. Each item computes one "
+                    "value the code evaluates over the cited rows.",
                     "items": {
                         "type": "object",
                         "additionalProperties": False,
@@ -85,7 +87,11 @@ EMIT_INVESTIGATION_TOOL: dict = {
                         "properties": {
                             "agg_id": {"type": "string"},
                             "op": {"enum": ["sum", "count", "min", "max"]},
-                            "row_ids": {"type": "array", "items": {"type": "string"}},
+                            "row_ids": {
+                                "type": "array", "items": {"type": "string"},
+                                "description": "EXACT transaction ids from the gathered GL evidence, "
+                                "copied verbatim. Never invent or abbreviate an id.",
+                            },
                         },
                     },
                 },
@@ -105,7 +111,27 @@ def _retry_emit_prompt(reason: str) -> str:
         "figures only — never invent a field and never write arithmetic. Valid tokens: "
         f"{{{{fig:flag.<field>}}}} where <field> is one of [{_FLAG_FIELDS}]; {{fig:gl:<txn_id>.amount}} "
         "for a returned transaction; {{fig:agg:<id>}} for an aggregate you list in `aggregates` as "
-        "{agg_id, op (sum|count|min|max), row_ids:[...]}."
+        "{agg_id, op (sum|count|min|max), row_ids:[...]}. Aggregate row_ids must be EXACT "
+        "transaction ids from the gathered evidence — for a single amount, use {{fig:gl:<id>.amount}} "
+        "instead of an aggregate."
+    )
+
+
+def _gl_result_message(rows) -> str:
+    """Echo the EXACT transaction ids (with counterparty/label, no figures) back to the model so it
+    cites real evidence — it must copy these ids verbatim for {{fig:gl:<id>.amount}} and aggregate
+    row_ids, never invent or abbreviate one."""
+    if not rows:
+        return "returned 0 rows. No GL evidence for this slice — ask the controller rather than guess."
+    lines = []
+    for r in rows:
+        tags = "; ".join(r.labels) if r.labels else ""
+        desc = " — ".join(p for p in (r.counterparty or "", tags) if p)
+        lines.append(f"{r.transaction_id}" + (f" ({desc})" if desc else ""))
+    return (
+        f"returned {len(rows)} rows. Use these EXACT transaction ids — copy verbatim, never invent "
+        "or abbreviate — for {{fig:gl:<id>.amount}} and for any aggregate row_ids:\n"
+        + "\n".join(lines)
     )
 
 
@@ -132,9 +158,13 @@ def _system_messages(flag: FlaggedVariance, pnl: PnLResult) -> list[dict]:
                 f"are: {{{{fig:flag.<field>}}}} where <field> is one of [{_FLAG_FIELDS}] — do NOT "
                 "invent a field like 'direction'; {{fig:gl:<txn_id>.amount}} for a transaction "
                 "query_gl_detail returned; and {{fig:agg:<id>}} for an aggregate you declare in "
-                "`aggregates` ({agg_id, op: sum|count|min|max, row_ids}). To show a total or count, "
-                "declare an aggregate — never write arithmetic such as '{{fig:a}} - {{fig:b}}' "
-                "anywhere, and never put a token in any field other than narrative/hypothesis_text."
+                "`aggregates` ({agg_id, op: sum|count|min|max, row_ids}). To show ONE driver's amount, "
+                "cite that single transaction with {{fig:gl:<txn_id>.amount}} — do NOT declare an "
+                "aggregate for it. Declare an aggregate ONLY for a genuine multi-row total, and every "
+                "row_id in it MUST be an EXACT transaction id from the gathered GL evidence (copied "
+                "verbatim — never invented or abbreviated). Never write arithmetic such as "
+                "'{{fig:a}} - {{fig:b}}' anywhere, and never put a token in any field other than "
+                "narrative/hypothesis_text."
             ),
         },
         {
@@ -205,7 +235,7 @@ def investigate(
                     evidence[row.transaction_id] = row
                 messages.append(
                     {"role": "tool", "name": "query_gl_detail",
-                     "content": f"returned {len(result.rows)} rows"}
+                     "content": _gl_result_message(result.rows)}
                 )
                 if tool_calls_used >= settings.max_tool_calls_per_variance:
                     forced = True  # gathered enough; force the structured emit next
@@ -324,8 +354,10 @@ def draft_from_controller(
             "Draft a concise management-commentary line. You NEVER write a number and NEVER compute. "
             "Reference existing figures ONLY, by token, inside `narrative` (and `hypothesis_text`). "
             f"Valid tokens: {{{{fig:flag.<field>}}}} where <field> is one of [{_FLAG_FIELDS}]; "
-            "{{fig:gl:<txn_id>.amount}}; {{fig:agg:<id>}} (declare it in `aggregates`). Never invent "
-            "a field and never write arithmetic like '{{fig:a}} - {{fig:b}}'.")},
+            "{{fig:gl:<txn_id>.amount}} for one driver; {{fig:agg:<id>}} ONLY for a genuine multi-row "
+            "total declared in `aggregates`, whose row_ids must be EXACT transaction ids from the "
+            "evidence (copied verbatim). Never invent a field or an id, and never write arithmetic "
+            "like '{{fig:a}} - {{fig:b}}'.")},
         {"role": "user", "content": f"Flag {flag.flag_id}. Controller confirmed: {controller_input.text}"},
     ]
     log_refs: list[str] = []
