@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from agent.fakes import FakeLLMProvider, final, tool_call
+from agent.fakes import FakeLLMProvider, final, text, tool_call
 from agent.investigate import investigate
 from agent.models import RecordStatus
 
@@ -10,6 +10,26 @@ from agent.models import RecordStatus
 def _query(flag):
     # current_month at p=6 → period 6, current_year actuals.
     return tool_call("query_gl_detail", {"reporting_line": flag.reporting_line, "period": 6, "scenario": "current_year"})
+
+
+def test_prose_completion_is_recovered_by_forcing_emit(ebitda_flag, result6, gl_tool6, agent_settings, audit):
+    """The reported bug: the model answers in prose (no tool call). The loop must NOT drop it —
+    it forces emit_investigation and recovers a record."""
+    good = final({"status": "draft", "narrative": "EBITDA reached {{fig:flag.current_value}}.", "aggregates": []})
+    provider = FakeLLMProvider([text("EBITDA looks fine to me."), good])  # prose first, then structured
+    record = investigate(ebitda_flag, result6, provider=provider, gl_tool=gl_tool6,
+                         settings=agent_settings, audit=audit, now="t")
+    assert record is not None and record.status is RecordStatus.DRAFT
+    # the second call was issued with forced emit
+    assert provider.calls[-1]["tool_choice"] != "auto"
+
+
+def test_persistent_prose_fails_safe(ebitda_flag, result6, gl_tool6, agent_settings, audit):
+    provider = FakeLLMProvider([text("prose one"), text("prose two"), text("prose three")])
+    record = investigate(ebitda_flag, result6, provider=provider, gl_tool=gl_tool6,
+                         settings=agent_settings, audit=audit, now="t")
+    assert record is None
+    assert any("error" in e["response"] for e in audit.entries)
 
 
 def test_loop_gathers_evidence_and_drafts(ebitda_flag, result6, gl_tool6, agent_settings, audit):

@@ -12,6 +12,9 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Protocol, Union, runtime_checkable
 
+# tool_choice value that FORCES the model to emit the structured investigation result.
+FORCE_EMIT = {"type": "function", "function": {"name": "emit_investigation"}}
+
 
 @dataclass(frozen=True)
 class ToolCall:
@@ -25,7 +28,15 @@ class StructuredFinal:
     payload: dict
 
 
-ProviderResponse = Union[ToolCall, StructuredFinal]
+@dataclass(frozen=True)
+class TextResponse:
+    """A prose completion (finish_reason "stop", no tool call). NOT grounded output — the loop
+    must re-prompt forcing the emit tool, or fail safe."""
+
+    content: str
+
+
+ProviderResponse = Union[ToolCall, StructuredFinal, TextResponse]
 
 
 @runtime_checkable
@@ -37,6 +48,7 @@ class LLMProvider(Protocol):
         *,
         temperature: Decimal,
         model: str,
+        tool_choice: Union[str, dict] = "auto",
     ) -> ProviderResponse: ...
 
 
@@ -65,6 +77,7 @@ class OpenRouterProvider:
         *,
         temperature: Decimal,
         model: str,
+        tool_choice: Union[str, dict] = "auto",
     ) -> ProviderResponse:
         import httpx  # imported lazily so the core never pulls in httpx
 
@@ -77,7 +90,7 @@ class OpenRouterProvider:
             "messages": messages,
             "tools": tools,
             "temperature": float(temperature),
-            "tool_choice": "auto",
+            "tool_choice": tool_choice,
         }
         resp = httpx.post(
             f"{self.base_url}/chat/completions",
@@ -91,17 +104,25 @@ class OpenRouterProvider:
 
     def _parse(self, data: dict) -> ProviderResponse:
         try:
-            message = data["choices"][0]["message"]
-            calls = message.get("tool_calls") or []
-            if not calls:
-                raise OpenRouterError("model returned no tool call")
+            choice = data["choices"][0]
+            message = choice["message"]
+        except (KeyError, IndexError) as exc:
+            raise OpenRouterError(f"malformed OpenRouter response: {exc}") from exc
+
+        calls = message.get("tool_calls") or []
+        if not calls:
+            # The model answered in prose instead of calling a tool. This is NOT an error to
+            # swallow — return it so the loop can force structured output or fail safe.
+            return TextResponse(content=message.get("content") or "")
+
+        try:
             call = calls[0]
             name = call["function"]["name"]
             import json
 
             arguments = json.loads(call["function"]["arguments"])
-        except (KeyError, IndexError, ValueError) as exc:
-            raise OpenRouterError(f"malformed OpenRouter response: {exc}") from exc
+        except (KeyError, ValueError) as exc:
+            raise OpenRouterError(f"malformed tool call in OpenRouter response: {exc}") from exc
 
         if name == self._emit_tool_name:
             return StructuredFinal(payload=arguments)

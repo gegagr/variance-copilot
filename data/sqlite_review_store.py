@@ -41,6 +41,7 @@ review_item = Table(
     Column("original_draft_json", Text),
     Column("controller_answer_json", Text),
     Column("edited_text", Text),
+    Column("error", Text),
     Column("created_at", String),
     Column("updated_at", String),
 )
@@ -89,6 +90,7 @@ class SqliteReviewStore(ReviewStore):
             "original_draft_json": _dump(item.original_draft),
             "controller_answer_json": _dump(item.controller_answer),
             "edited_text": item.edited_text,
+            "error": item.error,
             "created_at": item.created_at,
             "updated_at": item.updated_at,
         }
@@ -139,6 +141,7 @@ class SqliteReviewStore(ReviewStore):
             original_draft=_load(Draft, row["original_draft_json"]),
             controller_answer=_load(ControllerInput, row["controller_answer_json"]),
             edited_text=row["edited_text"],
+            error=row["error"],
             created_at=row["created_at"] or "",
             updated_at=row["updated_at"] or "",
         )

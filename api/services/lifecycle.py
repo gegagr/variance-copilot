@@ -30,6 +30,9 @@ TRANSITIONS: dict[tuple[ReviewStatus, ReviewActionType], ReviewStatus] = {
     (S.AWAITING_CONTROLLER, A.DISMISS): S.DISMISSED,
     (S.DRAFTED, A.DISMISS): S.DISMISSED,
     (S.ACCEPTED, A.DISMISS): S.DISMISSED,
+    # A failed investigation is actionable: it can be re-run or dismissed.
+    (S.FAILED, A.INVESTIGATE): S.INVESTIGATING,
+    (S.FAILED, A.DISMISS): S.DISMISSED,
 }
 
 

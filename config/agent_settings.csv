@@ -1,2 +1,2 @@
 model_id,temperature,max_tool_calls_per_variance,dominant_share_threshold,max_guard_retries
-openrouter/auto,0,4,0.60,1
+google/gemini-2.5-flash,0,4,0.60,1

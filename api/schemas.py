@@ -29,6 +29,7 @@ class ReviewItemView(BaseModel):
     original_draft: Optional[Draft] = None
     controller_answer: Optional[ControllerInput] = None
     edited_text: Optional[str] = None
+    error: Optional[str] = None
     updated_at: str = ""
 
     @classmethod
@@ -37,7 +38,7 @@ class ReviewItemView(BaseModel):
             flag_id=item.flag_id, reporting_line=item.reporting_line, status=item.status,
             record=item.record, original_draft=item.original_draft,
             controller_answer=item.controller_answer, edited_text=item.edited_text,
-            updated_at=item.updated_at,
+            error=item.error, updated_at=item.updated_at,
         )
 
 

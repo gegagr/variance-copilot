@@ -53,4 +53,5 @@ def get_service(
         provider=provider,
         store=store,
         controller_id=settings.controller_id,
+        audit_path=settings.audit_path,
     )

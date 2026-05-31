@@ -60,6 +60,15 @@ describe("VarianceCard status variants", () => {
     expect(within(card()).queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("failed → shows the error reason + Retry/Dismiss", () => {
+    const item = { status: "failed", error: "model returned prose under forced emit" } as any;
+    render(<VarianceCard variance={v} item={item} />);
+    expect(card()).toHaveAttribute("data-status", "failed");
+    expect(screen.getByText(/model returned prose/)).toBeInTheDocument();
+    expect(within(card()).getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(within(card()).getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
+  });
+
   it("renders variance figures from served display strings (no compute)", () => {
     render(<VarianceCard variance={v} item={null} />);
     expect(card()).toHaveTextContent("€78,600.00");

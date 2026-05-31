@@ -24,6 +24,7 @@ class ReviewStatus(str, Enum):
     DRAFTED = "drafted"
     ACCEPTED = "accepted"
     DISMISSED = "dismissed"
+    FAILED = "failed"  # investigation produced no grounded record; carries an error reason
 
 
 RESOLVED = {ReviewStatus.ACCEPTED, ReviewStatus.DISMISSED}
@@ -48,6 +49,7 @@ class ReviewItem(BaseModel):
     original_draft: Optional[Draft] = None
     controller_answer: Optional[ControllerInput] = None
     edited_text: Optional[str] = None
+    error: Optional[str] = None  # failure reason when status == FAILED
     created_at: str = ""
     updated_at: str = ""
 

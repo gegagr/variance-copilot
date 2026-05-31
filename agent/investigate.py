@@ -8,6 +8,7 @@ fail safe (logged, no ungrounded output). Contains NO SDK/HTTP calls.
 
 from __future__ import annotations
 
+import logging
 from typing import Callable, Optional
 
 from config.agent_settings import AgentSettings
@@ -27,7 +28,9 @@ from agent.models import (
     RecordStatus,
 )
 from agent.tools import QUERY_GL_DETAIL_TOOL
-from agent.provider import LLMProvider, StructuredFinal, ToolCall
+from agent.provider import FORCE_EMIT, LLMProvider, StructuredFinal, TextResponse, ToolCall
+
+logger = logging.getLogger("variance_copilot.investigate")
 
 EMIT_INVESTIGATION_TOOL: dict = {
     "type": "function",
@@ -92,6 +95,8 @@ def investigate(
     log_refs: list[str] = []
     tool_calls_used = 0
     guard_retries = 0
+    forced = False  # once true, FORCE the model to call emit_investigation (no more prose/queries)
+    prose_under_force = 0
 
     def log(response: dict) -> str:
         entry_id = audit.record(
@@ -101,6 +106,8 @@ def investigate(
         return entry_id
 
     def fail_safe(reason: str) -> None:
+        # PERMANENT, visible failure logging — an investigation must never vanish silently.
+        logger.warning("investigation FAILED for flag=%s: %s", flag.flag_id, reason)
         audit.record(
             model=settings.model_id, request={"messages": messages},
             response={"error": reason}, now=now,
@@ -109,8 +116,10 @@ def investigate(
 
     try:
         while True:
+            choice = FORCE_EMIT if forced else "auto"
             resp = provider.complete(
-                messages, tools, temperature=settings.temperature, model=settings.model_id
+                messages, tools, temperature=settings.temperature, model=settings.model_id,
+                tool_choice=choice,
             )
 
             if isinstance(resp, ToolCall):
@@ -118,14 +127,30 @@ def investigate(
                 if resp.name != "query_gl_detail":
                     return fail_safe(f"unexpected tool call: {resp.name}")
                 tool_calls_used += 1
-                if tool_calls_used > settings.max_tool_calls_per_variance:
-                    return fail_safe("exceeded max_tool_calls_per_variance")
                 result = gl_tool(GLQuery(**resp.arguments))
                 for row in result.rows:
                     evidence[row.transaction_id] = row
                 messages.append(
                     {"role": "tool", "name": "query_gl_detail",
                      "content": f"returned {len(result.rows)} rows"}
+                )
+                if tool_calls_used >= settings.max_tool_calls_per_variance:
+                    forced = True  # gathered enough; force the structured emit next
+                continue
+
+            if isinstance(resp, TextResponse):
+                # The model replied in prose instead of calling a tool (the silent-drop cause).
+                log({"text": resp.content[:1000]})
+                if forced:
+                    prose_under_force += 1
+                    if prose_under_force > 1:
+                        return fail_safe("model returned prose instead of structured output under forced emit")
+                forced = True
+                messages.append(
+                    {"role": "user",
+                     "content": "Do NOT answer in prose. Return your result by calling the "
+                     "emit_investigation tool with structured arguments; reference every figure "
+                     "by token (e.g. {{fig:gl:T1.amount}})."}
                 )
                 continue
 
@@ -138,28 +163,35 @@ def investigate(
 
                 ev_list = [evidence[k] for k in sorted(evidence)]
                 try:
-                    text, figures, allowed = commentary.render_output(payload, ev_list, flag)
+                    rendered, figures, allowed = commentary.render_output(payload, ev_list, flag)
                 except RenderError as exc:
                     if guard_retries >= settings.max_guard_retries:
                         return fail_safe(f"render failed: {exc}")
                     guard_retries += 1
-                    messages.append({"role": "user", "content": "Invalid figure token; retry."})
+                    forced = True
+                    messages.append({"role": "user", "content": "Invalid figure token; retry via emit_investigation."})
                     continue
 
                 g1 = assert_no_raw_digits(payload.narrative)
-                g2 = assert_grounded(text, allowed)
+                g2 = assert_grounded(rendered, allowed)
                 if g1.ok and g2.ok:
-                    return _build_record(flag, payload, ev_list, text, figures, log_refs)
+                    return _build_record(flag, payload, ev_list, rendered, figures, log_refs)
 
+                # Guard rejected — log the rejected output + reason (still blocks bad numbers).
+                logger.warning(
+                    "flag=%s guard rejected output: raw_digits=%s ungrounded=%s text=%r",
+                    flag.flag_id, g1.offending, g2.offending, rendered[:300],
+                )
                 if guard_retries >= settings.max_guard_retries:
                     return fail_safe(f"guard rejected: digits={g1.offending} grounded={g2.offending}")
                 guard_retries += 1
+                forced = True
                 messages.append(
-                    {"role": "user", "content": "Ungrounded number detected; reference figures by token only and retry."}
+                    {"role": "user", "content": "Ungrounded number detected; reference figures by token only and retry via emit_investigation."}
                 )
                 continue
 
-            return fail_safe("unexpected provider response")
+            return fail_safe(f"unexpected provider response: {type(resp).__name__}")
     except Exception as exc:  # provider unavailable / transport error
         return fail_safe(f"provider error: {type(exc).__name__}: {exc}")
 
@@ -208,34 +240,47 @@ def draft_from_controller(
     ]
     log_refs: list[str] = []
     guard_retries = 0
+    prose_seen = 0
     try:
         while True:
+            # Force the emit tool so the model returns structured output (not prose).
             resp = provider.complete(
                 messages, [EMIT_INVESTIGATION_TOOL], temperature=settings.temperature,
-                model=settings.model_id,
+                model=settings.model_id, tool_choice=FORCE_EMIT,
             )
             entry = audit.record(model=settings.model_id, request={"messages": messages},
                                  response={"structured_final": getattr(resp, "payload", None)}, now=now)
             log_refs.append(entry)
+            if isinstance(resp, TextResponse):
+                prose_seen += 1
+                if prose_seen > 1:
+                    logger.warning("draft_from_controller flag=%s: prose under forced emit", flag.flag_id)
+                    return None
+                messages.append({"role": "user", "content": "Call emit_investigation with structured arguments; no prose."})
+                continue
             if not isinstance(resp, StructuredFinal):
+                logger.warning("draft_from_controller flag=%s: unexpected response %s", flag.flag_id, type(resp).__name__)
                 return None
             try:
                 payload = EmitPayload(**resp.payload)
-            except Exception:
+            except Exception as exc:
+                logger.warning("draft_from_controller flag=%s: malformed payload: %s", flag.flag_id, exc)
                 return None
             try:
-                text, figures, allowed = commentary.render_output(payload, evidence, flag)
+                rendered, figures, allowed = commentary.render_output(payload, evidence, flag)
             except RenderError:
                 if guard_retries >= settings.max_guard_retries:
                     return None
                 guard_retries += 1
                 messages.append({"role": "user", "content": "Invalid token; retry."})
                 continue
-            if assert_no_raw_digits(payload.narrative).ok and assert_grounded(text, allowed).ok:
-                return commentary.build_draft(flag, payload, evidence, text, figures, log_refs, controller_input)
+            if assert_no_raw_digits(payload.narrative).ok and assert_grounded(rendered, allowed).ok:
+                return commentary.build_draft(flag, payload, evidence, rendered, figures, log_refs, controller_input)
+            logger.warning("draft_from_controller flag=%s: guard rejected", flag.flag_id)
             if guard_retries >= settings.max_guard_retries:
                 return None
             guard_retries += 1
             messages.append({"role": "user", "content": "Ungrounded number; retry with tokens."})
-    except Exception:
+    except Exception as exc:
+        logger.warning("draft_from_controller flag=%s: exception %s", flag.flag_id, exc)
         return None

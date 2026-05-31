@@ -8,6 +8,7 @@ FastAPI.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Optional
 
@@ -40,6 +41,8 @@ from api.schemas import (
 )
 from api.services.lifecycle import transition
 
+logger = logging.getLogger("variance_copilot.review_service")
+
 
 class NotFound(Exception):
     """Unknown period or flag id."""
@@ -48,7 +51,7 @@ class NotFound(Exception):
 class ReviewService:
     def __init__(self, *, repo: Repository, gl_repo: GLRowSource, config: EngineConfig,
                  config_dir: Path, agent_settings, provider, store: ReviewStore,
-                 controller_id: str = "controller") -> None:
+                 controller_id: str = "controller", audit_path: Optional[Path] = None) -> None:
         self.repo = repo
         self.gl_repo = gl_repo
         self.config = config
@@ -57,7 +60,9 @@ class ReviewService:
         self.provider = provider
         self.store = store
         self.controller_id = controller_id
-        self.audit = AuditLog()
+        # The agent's audit log is written to a real JSON-lines file so investigations are
+        # auditable on disk (the old in-memory-only AuditLog wrote nothing).
+        self.audit = AuditLog(path=Path(audit_path) if audit_path else None)
         self._session_period = config.settings.current_period
         self._gl_tool = make_gl_tool(gl_repo, config)
         self._action_seq = 0
@@ -91,14 +96,20 @@ class ReviewService:
         item.record = None
         item.original_draft = None
         item.edited_text = None
+        item.error = None
         item.updated_at = now
 
+        audit_before = len(self.audit.entries)
         record = agent_investigate(
             flag, self._session_pnl(), provider=self.provider, gl_tool=self._gl_tool,
             settings=self.agent_settings, audit=self.audit, now=now,
         )
-        if record is None:  # Block 3 fail-safe: no grounded output -> back to detected, no commentary
-            item.status = ReviewStatus.DETECTED
+        if record is None:
+            # PERMANENT, visible failure — never leave the item silently at "detected".
+            reason = self._last_audit_error(audit_before) or "investigation produced no grounded record"
+            item.status = ReviewStatus.FAILED
+            item.error = reason
+            logger.warning("investigate flag=%s -> FAILED: %s", flag_id, reason)
         elif record.status.value == "question":
             item.status = ReviewStatus.AWAITING_CONTROLLER
             item.record = record
@@ -109,8 +120,19 @@ class ReviewService:
 
         item.updated_at = now
         self.store.upsert(item)
-        self._record_action(ReviewActionType.INVESTIGATE, flag_id, from_status, item.status, now)
+        self._record_action(
+            ReviewActionType.INVESTIGATE, flag_id, from_status, item.status, now,
+            payload={"error": item.error} if item.error else None,
+        )
         return item
+
+    def _last_audit_error(self, since: int) -> Optional[str]:
+        """The error reason recorded by the agent's fail-safe during this run, if any."""
+        for entry in reversed(self.audit.entries[since:]):
+            err = entry.get("response", {}).get("error")
+            if err:
+                return err
+        return None
 
     def answer(self, flag_id: str, text: str, accepted_hypothesis: bool, *, now: str) -> ReviewItem:
         item = self._require(flag_id)

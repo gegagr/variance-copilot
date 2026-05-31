@@ -674,6 +674,8 @@ export interface components {
             controller_answer?: components["schemas"]["ControllerInput"] | null;
             /** Edited Text */
             edited_text?: string | null;
+            /** Error */
+            error?: string | null;
             /**
              * Updated At
              * @default
@@ -695,7 +697,7 @@ export interface components {
          * ReviewStatus
          * @enum {string}
          */
-        ReviewStatus: "detected" | "investigating" | "awaiting_controller" | "drafted" | "accepted" | "dismissed";
+        ReviewStatus: "detected" | "investigating" | "awaiting_controller" | "drafted" | "accepted" | "dismissed" | "failed";
         /**
          * Scenario
          * @enum {string}

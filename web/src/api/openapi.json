@@ -1727,6 +1727,17 @@
             ],
             "title": "Edited Text"
           },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
           "updated_at": {
             "type": "string",
             "title": "Updated At",
@@ -1775,7 +1786,8 @@
           "awaiting_controller",
           "drafted",
           "accepted",
-          "dismissed"
+          "dismissed",
+          "failed"
         ],
         "title": "ReviewStatus"
       },

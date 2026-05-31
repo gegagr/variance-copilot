@@ -57,12 +57,28 @@ def test_answer_on_non_awaiting_rejected(make_api_client):
     assert r.status_code == 409
 
 
-def test_failsafe_keeps_detected_no_commentary(make_api_client):
+def test_failsafe_marks_failed_with_visible_reason(make_api_client):
+    """A failed investigation is PERMANENT and visible — status 'failed' + an error reason,
+    never silently back to 'detected', and no commentary."""
     client, _ = make_api_client(FakeLLMProvider([QUERY, BAD, BAD]))  # guard rejects twice
     fid = _ebitda_flag_id(client)
     body = client.post(f"/review/{fid}/investigate").json()
-    assert body["status"] == "detected"
+    assert body["status"] == "failed"
     assert body["original_draft"] is None
+    assert body["error"] and "guard rejected" in body["error"]
+    # the failure is recorded in the action history (audit trail)
+    history = client.get(f"/review/{fid}/history").json()
+    assert any(a["action"] == "investigate" and a["to_status"] == "failed" for a in history)
+
+
+def test_failed_can_be_reinvestigated(make_api_client):
+    client, _ = make_api_client(FakeLLMProvider([QUERY, BAD, BAD, QUERY, DRAFT]))
+    fid = _ebitda_flag_id(client)
+    assert client.post(f"/review/{fid}/investigate").json()["status"] == "failed"
+    # re-run from failed succeeds, clearing the error
+    body = client.post(f"/review/{fid}/investigate").json()
+    assert body["status"] == "drafted"
+    assert body["error"] is None
 
 
 def test_reinvestigate_from_drafted_allowed(make_api_client):

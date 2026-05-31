@@ -15,6 +15,7 @@ const STATUS_BADGE: Record<string, string> = {
   drafted: "bg-indigo-100 text-indigo-800",
   accepted: "bg-emerald-100 text-emerald-800",
   dismissed: "bg-slate-100 text-slate-400",
+  failed: "bg-red-100 text-unfavorable",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -24,6 +25,7 @@ const STATUS_LABEL: Record<string, string> = {
   drafted: "Drafted",
   accepted: "Accepted",
   dismissed: "Dismissed",
+  failed: "Investigation failed",
 };
 
 export interface VarianceCardProps {
@@ -100,6 +102,10 @@ export function VarianceCard(props: VarianceCardProps) {
           <div className="text-sm text-accent">Investigating the general ledger…</div>
         )}
 
+        {status === "failed" && (
+          <div className="text-sm text-unfavorable">⚠ {item?.error ?? "Investigation failed."}</div>
+        )}
+
         {status === "awaiting_controller" && item?.record?.question && (
           <div className="space-y-2 rounded-md bg-amber-50 p-3">
             <p className="text-sm text-slate-800">{item.record.question.text}</p>
@@ -152,6 +158,15 @@ export function VarianceCard(props: VarianceCardProps) {
         ) : (
           <>
             {status === "detected" && <Button onClick={props.onInvestigate}>Investigate</Button>}
+
+            {status === "failed" && (
+              <>
+                <Button onClick={props.onInvestigate}>Retry</Button>
+                <Button variant="danger" onClick={props.onDismiss}>
+                  Dismiss
+                </Button>
+              </>
+            )}
 
             {status === "awaiting_controller" && (
               <>
