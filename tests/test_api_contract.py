@@ -17,7 +17,7 @@ def test_pnl_and_variances_shapes(make_api_client):
 def test_review_item_view_shape(make_api_client):
     client, _ = make_api_client(FakeLLMProvider([]))
     client.get("/variances", params={"current_period": 6})  # seed items
-    items = client.get("/review").json()
+    items = client.get("/review", params={"current_period": 6}).json()
     assert items
     for it in items:
         assert {"flag_id", "reporting_line", "status"} <= set(it)
@@ -35,17 +35,17 @@ def test_record_validates_against_block3_contract(make_api_client):
     client, _ = make_api_client(provider)
     fid = next(f["flag_id"] for f in client.get("/variances", params={"current_period": 6}).json()
                if f["reporting_line"] == "it_costs" and f["time_cut"] == "ytd")
-    body = client.post(f"/review/{fid}/investigate").json()
+    body = client.post(f"/review/{fid}/investigate", params={"current_period": 6}).json()
     InvestigationRecord.model_validate(body["record"])  # served record is the Block 3 contract
 
 
 def test_error_model(make_api_client):
     client, _ = make_api_client(FakeLLMProvider([]))
-    assert client.get("/review/does-not-exist").status_code == 404            # not found
+    assert client.get("/review/does-not-exist", params={"current_period": 6}).status_code == 404  # not found
     assert client.get("/pnl", params={"current_period": 99}).status_code == 422  # validation
     # 409 invalid transition: accept a freshly-detected item
     fid = client.get("/variances", params={"current_period": 6}).json()[0]["flag_id"]
-    assert client.post(f"/review/{fid}/accept").status_code == 409
+    assert client.post(f"/review/{fid}/accept", params={"current_period": 6}).status_code == 409
 
 
 def test_openapi_published(make_api_client):

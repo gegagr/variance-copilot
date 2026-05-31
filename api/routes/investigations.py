@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.deps import get_now, get_service
 from api.schemas import AnswerRequest, ReviewItemView
@@ -15,15 +15,17 @@ router = APIRouter(tags=["investigations"])
 
 
 @router.get("/review", response_model=list[ReviewItemView])
-def list_review(service: Annotated[ReviewService, Depends(get_service)]) -> list[ReviewItemView]:
-    # Ensure items exist for the session's flags, then list them.
-    service.get_flags(service.config.settings.current_period)
-    return [ReviewItemView.of(it) for it in service.store.list_all()]
+def list_review(service: Annotated[ReviewService, Depends(get_service)],
+                current_period: int = Query(ge=1, le=12)) -> list[ReviewItemView]:
+    # Seed any missing items for this as-of month's flags (idempotent), then list that month's queue.
+    service.get_flags(current_period)
+    return [ReviewItemView.of(it) for it in service.store.list_all(current_period)]
 
 
 @router.get("/review/{flag_id}", response_model=ReviewItemView)
-def get_review_item(flag_id: str, service: Annotated[ReviewService, Depends(get_service)]) -> ReviewItemView:
-    item = service.store.get(flag_id)
+def get_review_item(flag_id: str, service: Annotated[ReviewService, Depends(get_service)],
+                    current_period: int = Query(ge=1, le=12)) -> ReviewItemView:
+    item = service.store.get(current_period, flag_id)
     if item is None:
         raise HTTPException(status_code=404, detail=f"unknown flag {flag_id}")
     return ReviewItemView.of(item)
@@ -31,9 +33,10 @@ def get_review_item(flag_id: str, service: Annotated[ReviewService, Depends(get_
 
 @router.post("/review/{flag_id}/investigate", response_model=ReviewItemView)
 def investigate(flag_id: str, service: Annotated[ReviewService, Depends(get_service)],
-                now: Annotated[str, Depends(get_now)]) -> ReviewItemView:
+                now: Annotated[str, Depends(get_now)],
+                current_period: int = Query(ge=1, le=12)) -> ReviewItemView:
     try:
-        return ReviewItemView.of(service.investigate(flag_id, now=now))
+        return ReviewItemView.of(service.investigate(flag_id, current_period, now=now))
     except NotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except InvalidTransition as exc:
@@ -42,10 +45,11 @@ def investigate(flag_id: str, service: Annotated[ReviewService, Depends(get_serv
 
 @router.post("/review/{flag_id}/answer", response_model=ReviewItemView)
 def answer(flag_id: str, body: AnswerRequest, service: Annotated[ReviewService, Depends(get_service)],
-           now: Annotated[str, Depends(get_now)]) -> ReviewItemView:
+           now: Annotated[str, Depends(get_now)],
+           current_period: int = Query(ge=1, le=12)) -> ReviewItemView:
     try:
         return ReviewItemView.of(
-            service.answer(flag_id, body.text, body.accepted_hypothesis, now=now)
+            service.answer(flag_id, current_period, body.text, body.accepted_hypothesis, now=now)
         )
     except NotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))

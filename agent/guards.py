@@ -56,6 +56,18 @@ def _to_decimal(raw: str) -> Decimal:
     return Decimal(cleaned)
 
 
+def draft_omits_available_evidence(record, evidence_available: bool) -> bool:
+    """True (a bug) when a DRAFT is emitted with NO GL evidence gathered, yet rows exist.
+
+    A draft that explains a variance while ignoring the GL rows actually behind it — e.g. claims
+    "no transactions" when the driver rows exist for that line/period — is not grounded. The caller
+    passes whether the flag's deterministic GL slice (``grounded_gl_query``) returns any rows.
+    """
+    if record is None or record.draft is None:
+        return False
+    return evidence_available and not record.evidence
+
+
 def assert_grounded(text: str, allowed: AllowedValues) -> GuardResult:
     """Every figure in rendered `text` must be in the allowed set (verbatim or aggregate)."""
     offending: list[str] = []

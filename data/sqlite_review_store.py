@@ -12,12 +12,14 @@ from typing import Optional
 
 from sqlalchemy import (
     Column,
+    Integer,
     MetaData,
     String,
     Table,
     Text,
     create_engine,
     insert,
+    inspect,
     select,
 )
 
@@ -34,6 +36,7 @@ _metadata = MetaData()
 
 review_item = Table(
     "review_item", _metadata,
+    Column("current_period", Integer, primary_key=True),  # composite PK: (current_period, flag_id)
     Column("flag_id", String, primary_key=True),
     Column("reporting_line", String, nullable=False),
     Column("status", String, nullable=False),
@@ -50,6 +53,7 @@ review_action = Table(
     "review_action", _metadata,
     Column("action_id", String, primary_key=True),
     Column("flag_id", String, nullable=False),
+    Column("current_period", Integer, nullable=False),
     Column("action", String, nullable=False),
     Column("actor", String, nullable=False),
     Column("ts", String, nullable=False),
@@ -72,17 +76,36 @@ class SqliteReviewStore(ReviewStore):
         sqlite_path = Path(sqlite_path)
         sqlite_path.parent.mkdir(parents=True, exist_ok=True)
         self.engine = create_engine(f"sqlite:///{sqlite_path}")
+        self._recreate_if_incompatible()
         _metadata.create_all(self.engine)
 
-    def get(self, flag_id: str) -> Optional[ReviewItem]:
+    def _recreate_if_incompatible(self) -> None:
+        """Drop the review tables if an existing schema predates the (current_period, flag_id) key.
+
+        The primary key changed, so a DB written by the old single-key schema cannot be used. The
+        review DB is dev-only, git-ignored, mock-state (Constitution VIII), so a recreate is safe
+        and also clears stale rows. A fresh DB (no review_item table) is left for create_all.
+        """
+        inspector = inspect(self.engine)
+        if not inspector.has_table("review_item"):
+            return
+        columns = {c["name"] for c in inspector.get_columns("review_item")}
+        if "current_period" not in columns:
+            _metadata.drop_all(self.engine)
+
+    def get(self, current_period: int, flag_id: str) -> Optional[ReviewItem]:
         with self.engine.connect() as conn:
             row = conn.execute(
-                select(review_item).where(review_item.c.flag_id == flag_id)
+                select(review_item).where(
+                    review_item.c.current_period == current_period,
+                    review_item.c.flag_id == flag_id,
+                )
             ).mappings().first()
         return self._row_to_item(row) if row else None
 
     def upsert(self, item: ReviewItem) -> None:
         values = {
+            "current_period": item.current_period,
             "flag_id": item.flag_id,
             "reporting_line": item.reporting_line,
             "status": item.status.value,
@@ -97,33 +120,40 @@ class SqliteReviewStore(ReviewStore):
         from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
         stmt = sqlite_insert(review_item).values(**values)
-        stmt = stmt.on_conflict_do_update(index_elements=["flag_id"], set_=values)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["current_period", "flag_id"], set_=values
+        )
         with self.engine.begin() as conn:
             conn.execute(stmt)
 
-    def list_all(self) -> list[ReviewItem]:
+    def list_all(self, current_period: int) -> list[ReviewItem]:
         with self.engine.connect() as conn:
-            rows = conn.execute(select(review_item)).mappings().all()
+            rows = conn.execute(
+                select(review_item).where(review_item.c.current_period == current_period)
+            ).mappings().all()
         return [self._row_to_item(r) for r in rows]
 
     def append_action(self, action: ReviewAction) -> None:
         with self.engine.begin() as conn:
             conn.execute(insert(review_action).values(
                 action_id=action.action_id, flag_id=action.flag_id,
+                current_period=action.current_period,
                 action=action.action.value, actor=action.actor, ts=action.ts,
                 from_status=action.from_status.value, to_status=action.to_status.value,
                 payload_json=json.dumps(action.payload) if action.payload is not None else None,
             ))
 
-    def actions_for(self, flag_id: str) -> list[ReviewAction]:
+    def actions_for(self, current_period: int, flag_id: str) -> list[ReviewAction]:
         with self.engine.connect() as conn:
             rows = conn.execute(
-                select(review_action).where(review_action.c.flag_id == flag_id)
-                .order_by(review_action.c.action_id)
+                select(review_action).where(
+                    review_action.c.current_period == current_period,
+                    review_action.c.flag_id == flag_id,
+                ).order_by(review_action.c.action_id)
             ).mappings().all()
         return [
             ReviewAction(
-                action_id=r["action_id"], flag_id=r["flag_id"],
+                action_id=r["action_id"], flag_id=r["flag_id"], current_period=r["current_period"],
                 action=ReviewActionType(r["action"]), actor=r["actor"], ts=r["ts"],
                 from_status=ReviewStatus(r["from_status"]), to_status=ReviewStatus(r["to_status"]),
                 payload=json.loads(r["payload_json"]) if r["payload_json"] else None,
@@ -135,6 +165,7 @@ class SqliteReviewStore(ReviewStore):
     def _row_to_item(row) -> ReviewItem:
         return ReviewItem(
             flag_id=row["flag_id"],
+            current_period=row["current_period"],
             reporting_line=row["reporting_line"],
             status=ReviewStatus(row["status"]),
             record=_load(InvestigationRecord, row["record_json"]),

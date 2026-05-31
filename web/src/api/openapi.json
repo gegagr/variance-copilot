@@ -12,6 +12,19 @@
         ],
         "summary": "Progress",
         "operationId": "progress_review_progress_get",
+        "parameters": [
+          {
+            "name": "current_period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Current Period"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -19,6 +32,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ReviewProgressView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -33,17 +56,40 @@
         ],
         "summary": "Accepted",
         "operationId": "accepted_review_accepted_get",
+        "parameters": [
+          {
+            "name": "current_period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Current Period"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/AcceptedCommentaryItem"
                   },
-                  "type": "array",
                   "title": "Response Accepted Review Accepted Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -66,6 +112,17 @@
             "schema": {
               "type": "string",
               "title": "Flag Id"
+            }
+          },
+          {
+            "name": "current_period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Current Period"
             }
           }
         ],
@@ -113,6 +170,17 @@
               "type": "string",
               "title": "Flag Id"
             }
+          },
+          {
+            "name": "current_period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Current Period"
+            }
           }
         ],
         "responses": {
@@ -155,6 +223,17 @@
               "type": "string",
               "title": "Flag Id"
             }
+          },
+          {
+            "name": "current_period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Current Period"
+            }
           }
         ],
         "responses": {
@@ -196,6 +275,17 @@
             "schema": {
               "type": "string",
               "title": "Flag Id"
+            }
+          },
+          {
+            "name": "current_period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Current Period"
             }
           }
         ],
@@ -240,17 +330,40 @@
         ],
         "summary": "List Review",
         "operationId": "list_review_review_get",
+        "parameters": [
+          {
+            "name": "current_period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Current Period"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/ReviewItemView"
                   },
-                  "type": "array",
                   "title": "Response List Review Review Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -273,6 +386,17 @@
             "schema": {
               "type": "string",
               "title": "Flag Id"
+            }
+          },
+          {
+            "name": "current_period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Current Period"
             }
           }
         ],
@@ -316,6 +440,17 @@
               "type": "string",
               "title": "Flag Id"
             }
+          },
+          {
+            "name": "current_period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Current Period"
+            }
           }
         ],
         "responses": {
@@ -357,6 +492,17 @@
             "schema": {
               "type": "string",
               "title": "Flag Id"
+            }
+          },
+          {
+            "name": "current_period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Current Period"
             }
           }
         ],
@@ -1325,6 +1471,11 @@
             },
             "type": "array",
             "title": "Cells"
+          },
+          "display_label": {
+            "type": "string",
+            "title": "Display Label",
+            "default": ""
           }
         },
         "type": "object",
@@ -1619,6 +1770,11 @@
           "flag_id": {
             "type": "string",
             "title": "Flag Id"
+          },
+          "current_period": {
+            "type": "integer",
+            "title": "Current Period",
+            "default": 0
           },
           "action": {
             "$ref": "#/components/schemas/ReviewActionType"

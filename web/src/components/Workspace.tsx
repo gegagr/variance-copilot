@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 
 import type { ReviewItemView, TimeCut } from "@/api/schema";
+import { DEFAULT_PERIOD } from "@/api/schema";
 import { ApiError } from "@/api/client";
+import { AsOfSelector } from "@/components/AsOfSelector";
 import { PnlGrid } from "@/components/PnlGrid";
 import { ProgressBar } from "@/components/ProgressBar";
 import { TimeCutSelector } from "@/components/TimeCutSelector";
@@ -11,16 +13,17 @@ import { usePnl, useProgress, useReview, useReviewActions, useVariances } from "
 import { buildAnchor, flaggedLines as flaggedLinesOf } from "@/lib/anchor";
 
 export function Workspace() {
+  const [currentPeriod, setCurrentPeriod] = useState<number>(DEFAULT_PERIOD);
   const [timeCut, setTimeCut] = useState<TimeCut>("ytd");
   const [selectedFlagId, setSelectedFlagId] = useState<string | null>(null);
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string | null>>({});
 
-  const pnl = usePnl(timeCut);
-  const variances = useVariances();
-  const review = useReview();
-  const progress = useProgress();
-  const actions = useReviewActions();
+  const pnl = usePnl(currentPeriod, timeCut);
+  const variances = useVariances(currentPeriod);
+  const review = useReview(currentPeriod);
+  const progress = useProgress(currentPeriod);
+  const actions = useReviewActions(currentPeriod);
 
   const anchor = useMemo(() => buildAnchor(variances.data ?? []), [variances.data]);
   const flagged = useMemo(() => flaggedLinesOf(anchor), [anchor]);
@@ -86,6 +89,7 @@ export function Workspace() {
           <p className="text-sm text-slate-500">Review flagged P&amp;L variances and draft the commentary.</p>
         </div>
         <div className="flex items-center gap-4">
+          <AsOfSelector value={currentPeriod} onChange={setCurrentPeriod} />
           {progress.data && <ProgressBar resolved={progress.data.resolved} total={progress.data.total} />}
           <Button variant="outline" onClick={() => void investigateAll()}>
             Investigate all

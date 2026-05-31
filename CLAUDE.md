@@ -9,12 +9,13 @@ Word first-class, No Real Client Data).
 ## Active plan
 
 <!-- SPECKIT START -->
-- **004 — Review Workspace UI (Block 5)** *(active)*: [specs/004-review-workspace-ui/plan.md](specs/004-review-workspace-ui/plan.md)
-  - Spec: [specs/004-review-workspace-ui/spec.md](specs/004-review-workspace-ui/spec.md)
-  - Research: [specs/004-review-workspace-ui/research.md](specs/004-review-workspace-ui/research.md)
-  - Data model: [specs/004-review-workspace-ui/data-model.md](specs/004-review-workspace-ui/data-model.md)
-  - Contracts: [specs/004-review-workspace-ui/contracts/](specs/004-review-workspace-ui/contracts/)
-  - Quickstart: [specs/004-review-workspace-ui/quickstart.md](specs/004-review-workspace-ui/quickstart.md)
+- **005 — As-of Period Selector** *(active)*: [specs/005-as-of-period-selector/plan.md](specs/005-as-of-period-selector/plan.md)
+  - Spec: [specs/005-as-of-period-selector/spec.md](specs/005-as-of-period-selector/spec.md)
+  - Research: [specs/005-as-of-period-selector/research.md](specs/005-as-of-period-selector/research.md)
+  - Data model: [specs/005-as-of-period-selector/data-model.md](specs/005-as-of-period-selector/data-model.md)
+  - Contracts: [specs/005-as-of-period-selector/contracts/](specs/005-as-of-period-selector/contracts/)
+  - Quickstart: [specs/005-as-of-period-selector/quickstart.md](specs/005-as-of-period-selector/quickstart.md)
+- **004 — Review Workspace UI (Block 5)** *(implemented)*: [specs/004-review-workspace-ui/plan.md](specs/004-review-workspace-ui/plan.md)
 - **003 — Review API Layer (Block 4)** *(implemented)*: [specs/003-review-api/plan.md](specs/003-review-api/plan.md)
 - **002 — AI Investigation and Commentary Layer (Block 3)** *(implemented)*: [specs/002-ai-investigation-commentary/plan.md](specs/002-ai-investigation-commentary/plan.md)
 - **001 — Deterministic P&L and Variance Engine (Block 1)** *(implemented)*: [specs/001-pnl-variance-engine/plan.md](specs/001-pnl-variance-engine/plan.md)

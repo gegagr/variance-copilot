@@ -11,6 +11,8 @@ from __future__ import annotations
 import logging
 from typing import Callable, Optional
 
+from pydantic import ValidationError
+
 from config.agent_settings import AgentSettings
 from engine.models import FlaggedVariance, PnLResult
 from agent import commentary
@@ -27,28 +29,66 @@ from agent.models import (
     InvestigationRecord,
     RecordStatus,
 )
-from agent.tools import QUERY_GL_DETAIL_TOOL
+from agent.tools import QUERY_GL_DETAIL_TOOL, grounded_gl_query
 from agent.provider import FORCE_EMIT, LLMProvider, StructuredFinal, TextResponse, ToolCall
 
 logger = logging.getLogger("variance_copilot.investigate")
+
+# The CLOSED set of flag figure fields a {{fig:flag.<field>}} token may reference.
+_FLAG_FIELDS = ", ".join(commentary.VALID_FLAG_FIGURE_FIELDS)
 
 EMIT_INVESTIGATION_TOOL: dict = {
     "type": "function",
     "function": {
         "name": "emit_investigation",
-        "description": "Emit the final investigation result: a question or a draft. "
-        "Reference every figure by token (e.g. {{fig:gl:T1.amount}}); never write a digit.",
+        "description": (
+            "Emit the final investigation result: a question or a draft. You NEVER write a digit and "
+            "NEVER compute: reference existing figures only, by token, and ONLY inside `narrative` "
+            "(and `hypothesis_text`). Valid tokens — and nothing else — are: "
+            f"{{{{fig:flag.<field>}}}} where <field> is one of [{_FLAG_FIELDS}] (do NOT invent a field "
+            "such as 'direction'); {{fig:gl:<txn_id>.amount}} for a transaction returned by "
+            "query_gl_detail; {{fig:agg:<id>}} for an aggregate you declare in `aggregates`. To show a "
+            "total or count, declare an aggregate (op over row_ids) and cite it — never write "
+            "arithmetic like '{{fig:a}} - {{fig:b}}' anywhere."
+        ),
         "parameters": {
             "type": "object",
             "additionalProperties": False,
             "required": ["status", "narrative"],
             "properties": {
                 "status": {"enum": ["question", "draft"]},
-                "hypothesis_text": {"type": ["string", "null"]},
-                "hypothesis_row_ids": {"type": "array", "items": {"type": "string"}},
-                "narrative": {"type": "string"},
-                "cited_row_ids": {"type": "array", "items": {"type": "string"}},
-                "aggregates": {"type": "array"},
+                "hypothesis_text": {
+                    "type": ["string", "null"],
+                    "description": "Plain prose; may contain {{fig:...}} tokens. No digits, no arithmetic.",
+                },
+                "hypothesis_row_ids": {
+                    "type": "array", "items": {"type": "string"},
+                    "description": "Transaction ids only (NOT figure tokens).",
+                },
+                "narrative": {
+                    "type": "string",
+                    "description": "The commentary/question. Every figure is a {{fig:...}} token; "
+                    "no raw digits and no arithmetic between figures.",
+                },
+                "cited_row_ids": {
+                    "type": "array", "items": {"type": "string"},
+                    "description": "Transaction ids only (NOT figure tokens).",
+                },
+                "aggregates": {
+                    "type": "array",
+                    "description": "STRUCTURED aggregates only — never a string or an arithmetic "
+                    "expression. Each item computes one value the code evaluates over cited rows.",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["agg_id", "op", "row_ids"],
+                        "properties": {
+                            "agg_id": {"type": "string"},
+                            "op": {"enum": ["sum", "count", "min", "max"]},
+                            "row_ids": {"type": "array", "items": {"type": "string"}},
+                        },
+                    },
+                },
             },
         },
     },
@@ -57,17 +97,44 @@ EMIT_INVESTIGATION_TOOL: dict = {
 GLTool = Callable[[GLQuery], "object"]
 
 
+def _retry_emit_prompt(reason: str) -> str:
+    """Re-prompt fed back on a rejected emit, naming the specific problem and the exact rules."""
+    return (
+        f"Your emit_investigation call was rejected — {reason}. Call emit_investigation again, fixed. "
+        "Rules: put {{fig:...}} tokens ONLY in `narrative` (and `hypothesis_text`); reference existing "
+        "figures only — never invent a field and never write arithmetic. Valid tokens: "
+        f"{{{{fig:flag.<field>}}}} where <field> is one of [{_FLAG_FIELDS}]; {{fig:gl:<txn_id>.amount}} "
+        "for a returned transaction; {{fig:agg:<id>}} for an aggregate you list in `aggregates` as "
+        "{agg_id, op (sum|count|min|max), row_ids:[...]}."
+    )
+
+
+def _emit_error_detail(exc: ValidationError) -> str:
+    """A concise, field-named summary of why an emit payload failed validation."""
+    parts = []
+    for err in exc.errors():
+        loc = ".".join(str(x) for x in err["loc"]) or "(root)"
+        parts.append(f"field '{loc}': {err['msg']}")
+    return "; ".join(parts[:3]) or "invalid payload"
+
+
 def _system_messages(flag: FlaggedVariance, pnl: PnLResult) -> list[dict]:
     return [
         {
             "role": "system",
             "content": (
                 "You are a finance controller's assistant investigating a flagged P&L variance. "
-                "Use query_gl_detail to gather evidence, then call emit_investigation. "
-                "When you query, pass the flag's own time_cut and scenario_pair (shown below) "
-                "as query_gl_detail arguments — do NOT invent a period number or scenario name. "
-                "NEVER write a number: reference every figure by token "
-                "({{fig:flag.<field>}}, {{fig:gl:<txn_id>.amount}}, {{fig:agg:<id>}})."
+                "Call query_gl_detail to gather evidence (it is already scoped to THIS flag's line, "
+                "period, and scenario — call it with no arguments, or pass filters to narrow to a "
+                "counterparty/label), then call emit_investigation. "
+                "You NEVER write a number and NEVER compute. Reference existing figures ONLY, by "
+                "token, and only inside `narrative` (and `hypothesis_text`). The ONLY valid tokens "
+                f"are: {{{{fig:flag.<field>}}}} where <field> is one of [{_FLAG_FIELDS}] — do NOT "
+                "invent a field like 'direction'; {{fig:gl:<txn_id>.amount}} for a transaction "
+                "query_gl_detail returned; and {{fig:agg:<id>}} for an aggregate you declare in "
+                "`aggregates` ({agg_id, op: sum|count|min|max, row_ids}). To show a total or count, "
+                "declare an aggregate — never write arithmetic such as '{{fig:a}} - {{fig:b}}' "
+                "anywhere, and never put a token in any field other than narrative/hypothesis_text."
             ),
         },
         {
@@ -129,7 +196,11 @@ def investigate(
                 if resp.name != "query_gl_detail":
                     return fail_safe(f"unexpected tool call: {resp.name}")
                 tool_calls_used += 1
-                result = gl_tool(GLQuery(**resp.arguments))
+                # DETERMINISTIC GROUNDING: the slice is the flag's own (line/time_cut/scenario/
+                # as-of period); the model may only pass row filters. This prevents the model from
+                # zeroing the result by inventing a scenario/period.
+                query = grounded_gl_query(flag, pnl.current_period, (resp.arguments or {}).get("filters"))
+                result = gl_tool(query)
                 for row in result.rows:
                     evidence[row.transaction_id] = row
                 messages.append(
@@ -160,18 +231,30 @@ def investigate(
                 log({"structured_final": resp.payload})
                 try:
                     payload = EmitPayload(**resp.payload)
-                except Exception as exc:  # malformed structured output
+                except ValidationError as exc:
+                    # Wrong-shaped emit (e.g. a fig-token/arithmetic string in `aggregates`).
+                    reason = _emit_error_detail(exc)
+                    logger.warning("flag=%s malformed emit payload: %s", flag.flag_id, reason)
+                    if guard_retries >= settings.max_guard_retries:
+                        return fail_safe(f"malformed emit payload: {reason}")
+                    guard_retries += 1
+                    forced = True
+                    messages.append({"role": "user", "content": _retry_emit_prompt(reason)})
+                    continue
+                except Exception as exc:  # non-validation structural error (not retryable)
                     return fail_safe(f"malformed emit payload: {exc}")
 
                 ev_list = [evidence[k] for k in sorted(evidence)]
                 try:
                     rendered, figures, allowed = commentary.render_output(payload, ev_list, flag)
                 except RenderError as exc:
+                    # Bad token (unknown field, arithmetic between figures, undefined aggregate).
+                    logger.warning("flag=%s emit rejected by renderer: %s", flag.flag_id, exc)
                     if guard_retries >= settings.max_guard_retries:
                         return fail_safe(f"render failed: {exc}")
                     guard_retries += 1
                     forced = True
-                    messages.append({"role": "user", "content": "Invalid figure token; retry via emit_investigation."})
+                    messages.append({"role": "user", "content": _retry_emit_prompt(str(exc))})
                     continue
 
                 g1 = assert_no_raw_digits(payload.narrative)
@@ -188,9 +271,10 @@ def investigate(
                     return fail_safe(f"guard rejected: digits={g1.offending} grounded={g2.offending}")
                 guard_retries += 1
                 forced = True
-                messages.append(
-                    {"role": "user", "content": "Ungrounded number detected; reference figures by token only and retry via emit_investigation."}
+                reason = (
+                    f"ungrounded number(s) {g1.offending or g2.offending} not traceable to a cited figure"
                 )
+                messages.append({"role": "user", "content": _retry_emit_prompt(reason)})
                 continue
 
             return fail_safe(f"unexpected provider response: {type(resp).__name__}")
@@ -236,8 +320,12 @@ def draft_from_controller(
         raise ValueError("draft_from_controller requires a controller response (FR-012)")
 
     messages = [
-        {"role": "system", "content": "Draft a concise management-commentary line. Reference "
-         "every figure by token; never write a digit."},
+        {"role": "system", "content": (
+            "Draft a concise management-commentary line. You NEVER write a number and NEVER compute. "
+            "Reference existing figures ONLY, by token, inside `narrative` (and `hypothesis_text`). "
+            f"Valid tokens: {{{{fig:flag.<field>}}}} where <field> is one of [{_FLAG_FIELDS}]; "
+            "{{fig:gl:<txn_id>.amount}}; {{fig:agg:<id>}} (declare it in `aggregates`). Never invent "
+            "a field and never write arithmetic like '{{fig:a}} - {{fig:b}}'.")},
         {"role": "user", "content": f"Flag {flag.flag_id}. Controller confirmed: {controller_input.text}"},
     ]
     log_refs: list[str] = []
@@ -265,16 +353,25 @@ def draft_from_controller(
                 return None
             try:
                 payload = EmitPayload(**resp.payload)
+            except ValidationError as exc:
+                reason = _emit_error_detail(exc)
+                logger.warning("draft_from_controller flag=%s: malformed payload: %s", flag.flag_id, reason)
+                if guard_retries >= settings.max_guard_retries:
+                    return None
+                guard_retries += 1
+                messages.append({"role": "user", "content": _retry_emit_prompt(reason)})
+                continue
             except Exception as exc:
                 logger.warning("draft_from_controller flag=%s: malformed payload: %s", flag.flag_id, exc)
                 return None
             try:
                 rendered, figures, allowed = commentary.render_output(payload, evidence, flag)
-            except RenderError:
+            except RenderError as exc:
+                logger.warning("draft_from_controller flag=%s: emit rejected by renderer: %s", flag.flag_id, exc)
                 if guard_retries >= settings.max_guard_retries:
                     return None
                 guard_retries += 1
-                messages.append({"role": "user", "content": "Invalid token; retry."})
+                messages.append({"role": "user", "content": _retry_emit_prompt(str(exc))})
                 continue
             if assert_no_raw_digits(payload.narrative).ok and assert_grounded(rendered, allowed).ok:
                 return commentary.build_draft(flag, payload, evidence, rendered, figures, log_refs, controller_input)
@@ -282,7 +379,7 @@ def draft_from_controller(
             if guard_retries >= settings.max_guard_retries:
                 return None
             guard_retries += 1
-            messages.append({"role": "user", "content": "Ungrounded number; retry with tokens."})
+            messages.append({"role": "user", "content": _retry_emit_prompt("ungrounded number not traceable to a cited figure")})
     except Exception as exc:
         logger.warning("draft_from_controller flag=%s: exception %s", flag.flag_id, exc)
         return None

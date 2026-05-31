@@ -28,6 +28,10 @@ from agent.models import (
 
 FIG_TOKEN_RE = re.compile(r"\{\{fig:([^}]+)\}\}")
 
+# Arithmetic expressed BETWEEN two figure tokens (e.g. "{{fig:a}} - {{fig:b}}"). The model may
+# never compute: it references existing figures only. A computed total must be an `agg:` aggregate.
+ARITHMETIC_BETWEEN_FIGURES_RE = re.compile(r"\}\}\s*[-+*/×÷=]\s*\{\{")
+
 _FLAG_DOMAIN = {
     "abs_variance": "money",
     "abs_threshold": "money",
@@ -37,23 +41,30 @@ _FLAG_DOMAIN = {
     "pp_threshold": "ratio",
 }
 
+# The CLOSED set of flag figure fields a {{fig:flag.<field>}} token may reference. Anything else
+# (e.g. 'direction', 'reporting_line') is not a figure and is rejected.
+VALID_FLAG_FIGURE_FIELDS: tuple[str, ...] = ("current_value", "comparator_value", *_FLAG_DOMAIN)
+
 
 class RenderError(ValueError):
-    """Raised when a figure token cannot be resolved (triggers fail-safe upstream)."""
+    """Raised when a figure token cannot be resolved (triggers retry / fail-safe upstream)."""
 
 
 def _flag_figure(flag, field: str) -> tuple[Decimal, str]:
     """Return (value, domain) for a flag figure field."""
+    if field not in VALID_FLAG_FIGURE_FIELDS:
+        raise RenderError(
+            f"unknown flag figure field {field!r}; a flag figure must be one of: "
+            f"{', '.join(VALID_FLAG_FIGURE_FIELDS)}"
+        )
     is_margin = flag.line_type is LineType.MARGIN
     if field in ("current_value", "comparator_value"):
         domain = "ratio" if is_margin else "money"
-    elif field in _FLAG_DOMAIN:
-        domain = _FLAG_DOMAIN[field]
     else:
-        raise RenderError(f"unknown flag figure field: {field}")
+        domain = _FLAG_DOMAIN[field]
     value = getattr(flag, field, None)
     if value is None:
-        raise RenderError(f"flag figure {field} is None")
+        raise RenderError(f"flag figure {field!r} is not available for this variance")
     return Decimal(value), domain
 
 
@@ -113,6 +124,12 @@ def build_allowed(flag, evidence: list[GLEvidenceRow], agg_values: dict[str, Dec
 
 def render_output(payload: EmitPayload, evidence: list[GLEvidenceRow], flag):
     """Resolve figure tokens → (rendered_text, rendered_figures, allowed)."""
+    if ARITHMETIC_BETWEEN_FIGURES_RE.search(payload.narrative):
+        raise RenderError(
+            "narrative expresses arithmetic between figures (e.g. '{{fig:a}} - {{fig:b}}'); "
+            "never compute — reference existing figures only, and for a total define an aggregate "
+            "(op over row_ids) and cite it as {{fig:agg:<id>}}"
+        )
     rows_by_id = {r.transaction_id: r for r in evidence}
     agg_specs = {a.agg_id: a for a in payload.aggregates}
     agg_values = {a.agg_id: _compute_aggregate(a, rows_by_id) for a in payload.aggregates}
@@ -130,18 +147,32 @@ def render_output(payload: EmitPayload, evidence: list[GLEvidenceRow], flag):
         elif inner.startswith("gl:"):
             ref = inner[len("gl:"):]
             txn_id, _, attr = ref.partition(".")
-            if attr != "amount" or txn_id not in rows_by_id:
-                raise RenderError(f"unresolvable GL token: {token}")
+            if attr != "amount":
+                raise RenderError(
+                    f"invalid GL token {token}: a GL figure must be 'fig:gl:<txn_id>.amount' "
+                    "(only the .amount of a returned transaction can be cited)"
+                )
+            if txn_id not in rows_by_id:
+                raise RenderError(
+                    f"GL token {token} cites unknown transaction {txn_id!r}; cite a transaction id "
+                    "returned by query_gl_detail"
+                )
             value, domain = rows_by_id[txn_id].amount, "money"
             source, origin = FigureSource.GL, txn_id
         elif inner.startswith("agg:"):
             agg_id = inner[len("agg:"):]
             if agg_id not in agg_values:
-                raise RenderError(f"unknown aggregate token: {token}")
+                raise RenderError(
+                    f"aggregate token {token} references undefined aggregate {agg_id!r}; define it "
+                    "in `aggregates` as {agg_id, op, row_ids}"
+                )
             value, domain = agg_values[agg_id], "money"
             source, origin = FigureSource.AGGREGATE, agg_id
         else:
-            raise RenderError(f"unrecognised figure token: {token}")
+            raise RenderError(
+                f"unrecognised figure token {token}; valid forms: {{{{fig:flag.<field>}}}}, "
+                "{{fig:gl:<txn_id>.amount}}, {{fig:agg:<id>}}"
+            )
 
         figures.append(RenderedFigure(token=token, source=source, value=value, origin=origin))
         return _fmt_money(value) if domain == "money" else _fmt_ratio(value)

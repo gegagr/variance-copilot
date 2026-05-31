@@ -43,6 +43,7 @@ class ReviewActionType(str, Enum):
 
 class ReviewItem(BaseModel):
     flag_id: str
+    current_period: int = 0  # the as-of month this item belongs to; part of its identity
     reporting_line: str
     status: ReviewStatus = ReviewStatus.DETECTED
     record: Optional[InvestigationRecord] = None
@@ -57,6 +58,7 @@ class ReviewItem(BaseModel):
 class ReviewAction(BaseModel):
     action_id: str
     flag_id: str
+    current_period: int = 0  # the as-of month whose item changed
     action: ReviewActionType
     actor: str
     ts: str
@@ -66,43 +68,48 @@ class ReviewAction(BaseModel):
 
 
 class ReviewStore(ABC):
-    """Durable store for review items + their action history (Constitution Principle VI)."""
+    """Durable store for review items + their action history (Constitution Principle VI).
+
+    Items are identified by ``(current_period, flag_id)`` so each as-of month owns an independent
+    review queue and lifecycle state. ``upsert`` and ``append_action`` read the period from the
+    model; reads pass it explicitly.
+    """
 
     @abstractmethod
-    def get(self, flag_id: str) -> Optional[ReviewItem]: ...
+    def get(self, current_period: int, flag_id: str) -> Optional[ReviewItem]: ...
 
     @abstractmethod
     def upsert(self, item: ReviewItem) -> None: ...
 
     @abstractmethod
-    def list_all(self) -> list[ReviewItem]: ...
+    def list_all(self, current_period: int) -> list[ReviewItem]: ...
 
     @abstractmethod
     def append_action(self, action: ReviewAction) -> None: ...
 
     @abstractmethod
-    def actions_for(self, flag_id: str) -> list[ReviewAction]: ...
+    def actions_for(self, current_period: int, flag_id: str) -> list[ReviewAction]: ...
 
 
 class InMemoryReviewStore(ReviewStore):
     """Test double satisfying the same port (proves the service depends on the abstraction)."""
 
     def __init__(self) -> None:
-        self._items: dict[str, ReviewItem] = {}
+        self._items: dict[tuple[int, str], ReviewItem] = {}
         self._actions: list[ReviewAction] = []
 
-    def get(self, flag_id: str) -> Optional[ReviewItem]:
-        item = self._items.get(flag_id)
+    def get(self, current_period: int, flag_id: str) -> Optional[ReviewItem]:
+        item = self._items.get((current_period, flag_id))
         return item.model_copy(deep=True) if item else None
 
     def upsert(self, item: ReviewItem) -> None:
-        self._items[item.flag_id] = item.model_copy(deep=True)
+        self._items[(item.current_period, item.flag_id)] = item.model_copy(deep=True)
 
-    def list_all(self) -> list[ReviewItem]:
-        return [i.model_copy(deep=True) for i in self._items.values()]
+    def list_all(self, current_period: int) -> list[ReviewItem]:
+        return [i.model_copy(deep=True) for (p, _), i in self._items.items() if p == current_period]
 
     def append_action(self, action: ReviewAction) -> None:
         self._actions.append(copy.deepcopy(action))
 
-    def actions_for(self, flag_id: str) -> list[ReviewAction]:
-        return [a for a in self._actions if a.flag_id == flag_id]
+    def actions_for(self, current_period: int, flag_id: str) -> list[ReviewAction]:
+        return [a for a in self._actions if a.current_period == current_period and a.flag_id == flag_id]

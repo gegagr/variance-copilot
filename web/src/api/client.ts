@@ -38,22 +38,30 @@ export const api = {
     request<PnLResultView>(`/pnl/view?current_period=${currentPeriod}&time_cut=${timeCut}`),
   variancesView: (currentPeriod: number) =>
     request<FlaggedVarianceView[]>(`/variances/view?current_period=${currentPeriod}`),
-  review: () => request<ReviewItemView[]>(`/review`),
-  progress: () => request<ReviewProgressView>(`/review/progress`),
-  investigate: (flagId: string) =>
-    request<ReviewItemView>(`/review/${id(flagId)}/investigate`, { method: "POST" }),
-  answer: (flagId: string, body: AnswerRequest) =>
-    request<ReviewItemView>(`/review/${id(flagId)}/answer`, {
+  review: (currentPeriod: number) =>
+    request<ReviewItemView[]>(`/review?current_period=${currentPeriod}`),
+  progress: (currentPeriod: number) =>
+    request<ReviewProgressView>(`/review/progress?current_period=${currentPeriod}`),
+  investigate: (flagId: string, currentPeriod: number) =>
+    request<ReviewItemView>(`/review/${id(flagId)}/investigate?current_period=${currentPeriod}`, {
+      method: "POST",
+    }),
+  answer: (flagId: string, currentPeriod: number, body: AnswerRequest) =>
+    request<ReviewItemView>(`/review/${id(flagId)}/answer?current_period=${currentPeriod}`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  accept: (flagId: string) =>
-    request<ReviewItemView>(`/review/${id(flagId)}/accept`, { method: "POST" }),
-  edit: (flagId: string, body: EditRequest) =>
-    request<ReviewItemView>(`/review/${id(flagId)}/edit`, {
+  accept: (flagId: string, currentPeriod: number) =>
+    request<ReviewItemView>(`/review/${id(flagId)}/accept?current_period=${currentPeriod}`, {
+      method: "POST",
+    }),
+  edit: (flagId: string, currentPeriod: number, body: EditRequest) =>
+    request<ReviewItemView>(`/review/${id(flagId)}/edit?current_period=${currentPeriod}`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  dismiss: (flagId: string) =>
-    request<ReviewItemView>(`/review/${id(flagId)}/dismiss`, { method: "POST" }),
+  dismiss: (flagId: string, currentPeriod: number) =>
+    request<ReviewItemView>(`/review/${id(flagId)}/dismiss?current_period=${currentPeriod}`, {
+      method: "POST",
+    }),
 };

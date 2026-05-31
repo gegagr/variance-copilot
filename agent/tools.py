@@ -20,33 +20,26 @@ class GLRowSource(Protocol):
     def get_gl_rows(self) -> list[GLEvidenceRow]: ...
 
 
-# JSON tool schema exposed to the model.
+# JSON tool schema exposed to the model. The dimensional slice (reporting line, time_cut,
+# scenario, as-of period) is fixed by the flag and applied deterministically by the agent core —
+# the model does NOT choose it, so it cannot zero the result by inventing a scenario/period. The
+# model may only OPTIONALLY narrow the rows by counterparty / project / label.
 QUERY_GL_DETAIL_TOOL: dict = {
     "type": "function",
     "function": {
         "name": "query_gl_detail",
-        "description": "Return the GL transaction rows behind a reporting line for the "
-        "variance's slice. Pass the flag's own dimensions (time_cut + scenario_pair); the "
-        "current side of every comparison resolves to current-year actuals. Optionally pass "
-        "an explicit period + scenario instead.",
+        "description": "Return the GL transaction rows behind THIS flagged variance. The slice — "
+        "its reporting line, time_cut, scenario, and as-of period — is applied automatically; you "
+        "do not pass it. Call with no arguments to get every row behind the variance, or pass "
+        "`filters` to narrow to a counterparty, project, or label.",
         "parameters": {
             "type": "object",
             "additionalProperties": False,
-            "required": ["reporting_line"],
+            "required": [],
             "properties": {
-                "reporting_line": {"type": "string"},
-                "time_cut": {
-                    "type": "string",
-                    "enum": ["prior_month_ytd", "current_month", "ytd", "full_year"],
-                },
-                "scenario_pair": {
-                    "type": "string",
-                    "enum": ["current_vs_prior_year", "current_vs_budget"],
-                },
-                "period": {"type": "integer", "minimum": 1, "maximum": 12},
-                "scenario": {"type": "string", "enum": ["prior_year", "current_year", "budget"]},
                 "filters": {
                     "type": "object",
+                    "additionalProperties": False,
                     "properties": {
                         "project": {"type": "string"},
                         "counterparty": {"type": "string"},
@@ -150,6 +143,23 @@ def query_gl_detail(repo: GLRowSource, config: EngineConfig, query: GLQuery) -> 
     ]
     rows.sort(key=lambda r: r.transaction_id)  # canonical order
     return GLQueryResult(query=query, rows=rows)
+
+
+def grounded_gl_query(flag, current_period: int, filters: dict | None = None) -> GLQuery:
+    """Build the GL query scoped to THIS flag's own slice — deterministic grounding.
+
+    The agent does NOT choose the dimensions: the flag's reporting line, time_cut, and
+    scenario_pair plus the as-of ``current_period`` fix the slice, so query_gl_detail always
+    returns the rows actually behind the variance (never an empty set from a model-invented
+    scenario/period). The model may only narrow the result via row ``filters``.
+    """
+    return GLQuery(
+        reporting_line=flag.reporting_line,
+        time_cut=flag.time_cut.value,
+        scenario_pair=flag.scenario_pair.value,
+        current_period=current_period,
+        filters=filters if isinstance(filters, dict) else None,
+    )
 
 
 def make_gl_tool(repo: GLRowSource, config: EngineConfig) -> Callable[[GLQuery], GLQueryResult]:

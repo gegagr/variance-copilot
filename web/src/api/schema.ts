@@ -16,4 +16,7 @@ export type Draft = components["schemas"]["Draft"];
 export type ReviewStatus = ReviewItemView["status"];
 export type TimeCut = "prior_month_ytd" | "current_month" | "ytd" | "full_year";
 
-export const CURRENT_PERIOD = 6; // the review session's fiscal period (matches Block 4 default)
+// The as-of month the workspace is anchored to. Selectable set = months that have actuals
+// (the latest, period 6, is the default). A future /periods endpoint can make this data-driven.
+export const DEFAULT_PERIOD = 6;
+export const AS_OF_PERIODS = [1, 2, 3, 4, 5, 6] as const; // months with actuals, latest last

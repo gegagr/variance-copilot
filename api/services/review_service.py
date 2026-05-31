@@ -63,8 +63,6 @@ class ReviewService:
         # The agent's audit log is written to a real JSON-lines file so investigations are
         # auditable on disk (the old in-memory-only AuditLog wrote nothing).
         self.audit = AuditLog(path=Path(audit_path) if audit_path else None)
-        self._session_period = config.settings.current_period
-        self._gl_tool = make_gl_tool(gl_repo, config)
         self._action_seq = 0
 
     # --- read-through (no figure constructed) ---------------------------------
@@ -73,9 +71,9 @@ class ReviewService:
         return build_pnl(self.repo.get_transactions(), cfg)
 
     def get_flags(self, current_period: int) -> list[FlaggedVariance]:
+        """Flags for the as-of month, seeding any not-yet-present items as DETECTED (idempotent)."""
         flags = self._flags_for(current_period)
-        if current_period == self._session_period:
-            self._ensure_items(flags)
+        self._ensure_items(current_period, flags)
         return flags
 
     def get_pnl_view(self, current_period: int, time_cut: TimeCut) -> PnLResultView:
@@ -86,9 +84,9 @@ class ReviewService:
         return [to_flag_view(f) for f in self.get_flags(current_period)]
 
     # --- workflow actions ------------------------------------------------------
-    def investigate(self, flag_id: str, *, now: str) -> ReviewItem:
-        flag = self._session_flag(flag_id)
-        item = self._ensure_item(flag)
+    def investigate(self, flag_id: str, current_period: int, *, now: str) -> ReviewItem:
+        flag = self._flag_for(current_period, flag_id)
+        item = self._ensure_item(current_period, flag)
         new = transition(item.status, ReviewActionType.INVESTIGATE)  # detected/drafted -> investigating
         from_status = item.status
         # Fresh run: discard prior provenance.
@@ -101,7 +99,8 @@ class ReviewService:
 
         audit_before = len(self.audit.entries)
         record = agent_investigate(
-            flag, self._session_pnl(), provider=self.provider, gl_tool=self._gl_tool,
+            flag, self._pnl_for(current_period), provider=self.provider,
+            gl_tool=self._gl_tool_for(current_period),
             settings=self.agent_settings, audit=self.audit, now=now,
         )
         if record is None:
@@ -109,7 +108,7 @@ class ReviewService:
             reason = self._last_audit_error(audit_before) or "investigation produced no grounded record"
             item.status = ReviewStatus.FAILED
             item.error = reason
-            logger.warning("investigate flag=%s -> FAILED: %s", flag_id, reason)
+            logger.warning("investigate flag=%s period=%s -> FAILED: %s", flag_id, current_period, reason)
         elif record.status.value == "question":
             item.status = ReviewStatus.AWAITING_CONTROLLER
             item.record = record
@@ -121,7 +120,7 @@ class ReviewService:
         item.updated_at = now
         self.store.upsert(item)
         self._record_action(
-            ReviewActionType.INVESTIGATE, flag_id, from_status, item.status, now,
+            ReviewActionType.INVESTIGATE, flag_id, current_period, from_status, item.status, now,
             payload={"error": item.error} if item.error else None,
         )
         return item
@@ -134,10 +133,11 @@ class ReviewService:
                 return err
         return None
 
-    def answer(self, flag_id: str, text: str, accepted_hypothesis: bool, *, now: str) -> ReviewItem:
-        item = self._require(flag_id)
+    def answer(self, flag_id: str, current_period: int, text: str, accepted_hypothesis: bool,
+               *, now: str) -> ReviewItem:
+        item = self._require(current_period, flag_id)
         new = transition(item.status, ReviewActionType.ANSWER)  # awaiting_controller -> drafted
-        flag = self._session_flag(flag_id)
+        flag = self._flag_for(current_period, flag_id)
         ci = ControllerInput(input_id=f"{flag_id}:answer", flag_id=flag_id, text=text,
                              accepted_hypothesis=accepted_hypothesis)
         evidence = item.record.evidence if item.record else []
@@ -153,42 +153,42 @@ class ReviewService:
         item.original_draft = draft
         item.updated_at = now
         self.store.upsert(item)
-        self._record_action(ReviewActionType.ANSWER, flag_id, from_status, item.status, now,
-                            payload={"text": text})
+        self._record_action(ReviewActionType.ANSWER, flag_id, current_period, from_status,
+                            item.status, now, payload={"text": text})
         return item
 
-    def accept(self, flag_id: str, *, now: str) -> ReviewItem:
-        return self._simple_action(flag_id, ReviewActionType.ACCEPT, now)
+    def accept(self, flag_id: str, current_period: int, *, now: str) -> ReviewItem:
+        return self._simple_action(flag_id, current_period, ReviewActionType.ACCEPT, now)
 
-    def dismiss(self, flag_id: str, *, now: str) -> ReviewItem:
-        return self._simple_action(flag_id, ReviewActionType.DISMISS, now)
+    def dismiss(self, flag_id: str, current_period: int, *, now: str) -> ReviewItem:
+        return self._simple_action(flag_id, current_period, ReviewActionType.DISMISS, now)
 
-    def edit(self, flag_id: str, edited_text: str, *, now: str) -> ReviewItem:
-        item = self._require(flag_id)
+    def edit(self, flag_id: str, current_period: int, edited_text: str, *, now: str) -> ReviewItem:
+        item = self._require(current_period, flag_id)
         new = transition(item.status, ReviewActionType.EDIT)  # drafted|accepted -> drafted
         from_status = item.status
         item.status = new
         item.edited_text = edited_text  # original_draft retained (provenance preserved)
         item.updated_at = now
         self.store.upsert(item)
-        self._record_action(ReviewActionType.EDIT, flag_id, from_status, item.status, now,
-                            payload={"edited_text": edited_text})
+        self._record_action(ReviewActionType.EDIT, flag_id, current_period, from_status,
+                            item.status, now, payload={"edited_text": edited_text})
         return item
 
     # --- progress & assembled output ------------------------------------------
-    def progress(self) -> ReviewProgressView:
-        total = len(self._session_flags())
-        items = self.store.list_all()
+    def progress(self, current_period: int) -> ReviewProgressView:
+        total = len(self._flags_for(current_period))
+        items = self.store.list_all(current_period)
         by_status: dict[str, int] = {}
         for it in items:
             by_status[it.status.value] = by_status.get(it.status.value, 0) + 1
         resolved = sum(1 for it in items if it.status in RESOLVED)
         return ReviewProgressView(total=total, resolved=resolved, by_status=by_status)
 
-    def accepted_commentary(self) -> list[AcceptedCommentaryItem]:
+    def accepted_commentary(self, current_period: int) -> list[AcceptedCommentaryItem]:
         order_of = {row.reporting_line: row.order for row in self.config.layout}
         out: list[AcceptedCommentaryItem] = []
-        for it in self.store.list_all():
+        for it in self.store.list_all(current_period):
             if it.status is not ReviewStatus.ACCEPTED or it.original_draft is None:
                 continue
             text = it.edited_text if it.edited_text is not None else it.original_draft.commentary
@@ -200,67 +200,70 @@ class ReviewService:
         out.sort(key=lambda x: (x.order, x.flag_id))
         return out
 
-    def history(self, flag_id: str) -> list[ReviewAction]:
-        self._require(flag_id)
-        return self.store.actions_for(flag_id)
+    def history(self, flag_id: str, current_period: int) -> list[ReviewAction]:
+        self._require(current_period, flag_id)
+        return self.store.actions_for(current_period, flag_id)
 
     # --- helpers ---------------------------------------------------------------
     def _config_for(self, current_period: int) -> EngineConfig:
-        if current_period == self._session_period:
+        if current_period == self.config.settings.current_period:
             return self.config
         return load_config(self.config_dir, current_period=current_period)
 
-    def _session_pnl(self) -> PnLResult:
-        return build_pnl(self.repo.get_transactions(), self.config)
+    def _pnl_for(self, current_period: int) -> PnLResult:
+        return build_pnl(self.repo.get_transactions(), self._config_for(current_period))
 
-    def _session_flags(self) -> list[FlaggedVariance]:
-        return self._flags_for(self._session_period)
+    def _gl_tool_for(self, current_period: int):
+        """GL tool bound to the as-of period's config, so query_gl_detail resolves the right slice."""
+        return make_gl_tool(self.gl_repo, self._config_for(current_period))
 
     def _flags_for(self, current_period: int) -> list[FlaggedVariance]:
         cfg = self._config_for(current_period)
         pnl = build_pnl(self.repo.get_transactions(), cfg)
         return flag_variances(compute_variances(pnl, cfg), cfg)
 
-    def _session_flag(self, flag_id: str) -> FlaggedVariance:
-        for f in self._session_flags():
+    def _flag_for(self, current_period: int, flag_id: str) -> FlaggedVariance:
+        for f in self._flags_for(current_period):
             if f.flag_id == flag_id:
                 return f
         raise NotFound(f"unknown flag {flag_id}")
 
-    def _ensure_items(self, flags: list[FlaggedVariance]) -> None:
+    def _ensure_items(self, current_period: int, flags: list[FlaggedVariance]) -> None:
         for f in flags:
-            self._ensure_item(f)
+            self._ensure_item(current_period, f)
 
-    def _ensure_item(self, flag: FlaggedVariance) -> ReviewItem:
-        existing = self.store.get(flag.flag_id)
+    def _ensure_item(self, current_period: int, flag: FlaggedVariance) -> ReviewItem:
+        existing = self.store.get(current_period, flag.flag_id)
         if existing is not None:
-            return existing
-        item = ReviewItem(flag_id=flag.flag_id, reporting_line=flag.reporting_line,
-                          status=ReviewStatus.DETECTED)
+            return existing  # idempotent: never overwrite existing review state
+        item = ReviewItem(flag_id=flag.flag_id, current_period=current_period,
+                          reporting_line=flag.reporting_line, status=ReviewStatus.DETECTED)
         self.store.upsert(item)
         return item
 
-    def _require(self, flag_id: str) -> ReviewItem:
-        item = self.store.get(flag_id)
+    def _require(self, current_period: int, flag_id: str) -> ReviewItem:
+        item = self.store.get(current_period, flag_id)
         if item is None:
             raise NotFound(f"unknown flag {flag_id}")
         return item
 
-    def _simple_action(self, flag_id: str, action: ReviewActionType, now: str) -> ReviewItem:
-        item = self._require(flag_id)
+    def _simple_action(self, flag_id: str, current_period: int, action: ReviewActionType,
+                       now: str) -> ReviewItem:
+        item = self._require(current_period, flag_id)
         new = transition(item.status, action)
         from_status = item.status
         item.status = new
         item.updated_at = now
         self.store.upsert(item)
-        self._record_action(action, flag_id, from_status, item.status, now)
+        self._record_action(action, flag_id, current_period, from_status, item.status, now)
         return item
 
-    def _record_action(self, action, flag_id, from_status, to_status, now, payload=None) -> None:
+    def _record_action(self, action, flag_id, current_period, from_status, to_status, now,
+                        payload=None) -> None:
         self._action_seq += 1
-        action_id = f"{flag_id}|{action.value}|{now}|{self._action_seq}"
+        action_id = f"{flag_id}|{current_period}|{action.value}|{now}|{self._action_seq}"
         self.store.append_action(ReviewAction(
-            action_id=action_id, flag_id=flag_id, action=action,
+            action_id=action_id, flag_id=flag_id, current_period=current_period, action=action,
             actor=self.controller_id, ts=now, from_status=from_status, to_status=to_status,
             payload=payload,
         ))

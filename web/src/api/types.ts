@@ -518,6 +518,11 @@ export interface components {
             line_type: components["schemas"]["LineType"];
             /** Cells */
             cells: components["schemas"]["PnLCell"][];
+            /**
+             * Display Label
+             * @default
+             */
+            display_label: string;
         };
         /** PnLLineView */
         PnLLineView: {
@@ -645,6 +650,11 @@ export interface components {
             action_id: string;
             /** Flag Id */
             flag_id: string;
+            /**
+             * Current Period
+             * @default 0
+             */
+            current_period: number;
             action: components["schemas"]["ReviewActionType"];
             /** Actor */
             actor: string;
@@ -742,7 +752,9 @@ export type $defs = Record<string, never>;
 export interface operations {
     progress_review_progress_get: {
         parameters: {
-            query?: never;
+            query: {
+                current_period: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -758,11 +770,22 @@ export interface operations {
                     "application/json": components["schemas"]["ReviewProgressView"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     accepted_review_accepted_get: {
         parameters: {
-            query?: never;
+            query: {
+                current_period: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -778,11 +801,22 @@ export interface operations {
                     "application/json": components["schemas"]["AcceptedCommentaryItem"][];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     history_review__flag_id__history_get: {
         parameters: {
-            query?: never;
+            query: {
+                current_period: number;
+            };
             header?: never;
             path: {
                 flag_id: string;
@@ -813,7 +847,9 @@ export interface operations {
     };
     accept_review__flag_id__accept_post: {
         parameters: {
-            query?: never;
+            query: {
+                current_period: number;
+            };
             header?: never;
             path: {
                 flag_id: string;
@@ -844,7 +880,9 @@ export interface operations {
     };
     dismiss_review__flag_id__dismiss_post: {
         parameters: {
-            query?: never;
+            query: {
+                current_period: number;
+            };
             header?: never;
             path: {
                 flag_id: string;
@@ -875,7 +913,9 @@ export interface operations {
     };
     edit_review__flag_id__edit_post: {
         parameters: {
-            query?: never;
+            query: {
+                current_period: number;
+            };
             header?: never;
             path: {
                 flag_id: string;
@@ -910,7 +950,9 @@ export interface operations {
     };
     list_review_review_get: {
         parameters: {
-            query?: never;
+            query: {
+                current_period: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -926,11 +968,22 @@ export interface operations {
                     "application/json": components["schemas"]["ReviewItemView"][];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     get_review_item_review__flag_id__get: {
         parameters: {
-            query?: never;
+            query: {
+                current_period: number;
+            };
             header?: never;
             path: {
                 flag_id: string;
@@ -961,7 +1014,9 @@ export interface operations {
     };
     investigate_review__flag_id__investigate_post: {
         parameters: {
-            query?: never;
+            query: {
+                current_period: number;
+            };
             header?: never;
             path: {
                 flag_id: string;
@@ -992,7 +1047,9 @@ export interface operations {
     };
     answer_review__flag_id__answer_post: {
         parameters: {
-            query?: never;
+            query: {
+                current_period: number;
+            };
             header?: never;
             path: {
                 flag_id: string;
