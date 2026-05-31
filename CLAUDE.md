@@ -9,12 +9,13 @@ Word first-class, No Real Client Data).
 ## Active plan
 
 <!-- SPECKIT START -->
-- **003 — Review API Layer (Block 4)** *(active)*: [specs/003-review-api/plan.md](specs/003-review-api/plan.md)
-  - Spec: [specs/003-review-api/spec.md](specs/003-review-api/spec.md)
-  - Research: [specs/003-review-api/research.md](specs/003-review-api/research.md)
-  - Data model: [specs/003-review-api/data-model.md](specs/003-review-api/data-model.md)
-  - Contracts: [specs/003-review-api/contracts/](specs/003-review-api/contracts/)
-  - Quickstart: [specs/003-review-api/quickstart.md](specs/003-review-api/quickstart.md)
+- **004 — Review Workspace UI (Block 5)** *(active)*: [specs/004-review-workspace-ui/plan.md](specs/004-review-workspace-ui/plan.md)
+  - Spec: [specs/004-review-workspace-ui/spec.md](specs/004-review-workspace-ui/spec.md)
+  - Research: [specs/004-review-workspace-ui/research.md](specs/004-review-workspace-ui/research.md)
+  - Data model: [specs/004-review-workspace-ui/data-model.md](specs/004-review-workspace-ui/data-model.md)
+  - Contracts: [specs/004-review-workspace-ui/contracts/](specs/004-review-workspace-ui/contracts/)
+  - Quickstart: [specs/004-review-workspace-ui/quickstart.md](specs/004-review-workspace-ui/quickstart.md)
+- **003 — Review API Layer (Block 4)** *(implemented)*: [specs/003-review-api/plan.md](specs/003-review-api/plan.md)
 - **002 — AI Investigation and Commentary Layer (Block 3)** *(implemented)*: [specs/002-ai-investigation-commentary/plan.md](specs/002-ai-investigation-commentary/plan.md)
 - **001 — Deterministic P&L and Variance Engine (Block 1)** *(implemented)*: [specs/001-pnl-variance-engine/plan.md](specs/001-pnl-variance-engine/plan.md)
 <!-- SPECKIT END -->
@@ -66,3 +67,17 @@ Data access is behind the abstract `Repository` (only `FixtureRepository` in Blo
   editing an accepted item reverts it to `drafted` (re-accept required), retaining the original.
 - Every state change appends a `ReviewAction` (actor + timestamp). The SQLite review DB is
   config-driven and git-ignored. Tests run offline via `TestClient` + Block 3's `FakeLLMProvider`.
+
+## Block 5 (web UI, `web/`) non-negotiables
+
+- React + TypeScript SPA (Vite) consuming Block 4 only. The UI **computes no financial figure** — it
+  renders the API's deterministic **display string** per figure verbatim; `lib/format.ts` is
+  display-only and `noArithmetic.test.ts` fails the build on figure arithmetic.
+- TanStack Query owns server state; mutations invalidate + refetch so card status always mirrors the
+  API. Local React state holds only UI concerns (selected variance for anchoring, time cut).
+- Types are **generated** from FastAPI `/openapi.json` (never hand-edited). All network access goes
+  through the one typed `api/client.ts`. The OpenRouter key stays on the backend — the frontend
+  never sees it and never calls the model.
+- Visual: light surfaces, single indigo accent, semantic variance/status colors, Inter with tabular
+  figures. Not a terminal — no monospace for content, no dark console theme.
+- Dependency: Block 4 must serve a per-figure display string (`engine/format.py` + `*View` DTOs).

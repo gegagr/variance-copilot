@@ -1,0 +1,1861 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Variance Copilot \u2014 Review API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/review/progress": {
+      "get": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Progress",
+        "operationId": "progress_review_progress_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewProgressView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/accepted": {
+      "get": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Accepted",
+        "operationId": "accepted_review_accepted_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AcceptedCommentaryItem"
+                  },
+                  "type": "array",
+                  "title": "Response Accepted Review Accepted Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/{flag_id}/history": {
+      "get": {
+        "tags": [
+          "review"
+        ],
+        "summary": "History",
+        "operationId": "history_review__flag_id__history_get",
+        "parameters": [
+          {
+            "name": "flag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Flag Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewAction"
+                  },
+                  "title": "Response History Review  Flag Id  History Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/{flag_id}/accept": {
+      "post": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Accept",
+        "operationId": "accept_review__flag_id__accept_post",
+        "parameters": [
+          {
+            "name": "flag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Flag Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewItemView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/{flag_id}/dismiss": {
+      "post": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Dismiss",
+        "operationId": "dismiss_review__flag_id__dismiss_post",
+        "parameters": [
+          {
+            "name": "flag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Flag Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewItemView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/{flag_id}/edit": {
+      "post": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Edit",
+        "operationId": "edit_review__flag_id__edit_post",
+        "parameters": [
+          {
+            "name": "flag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Flag Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewItemView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review": {
+      "get": {
+        "tags": [
+          "investigations"
+        ],
+        "summary": "List Review",
+        "operationId": "list_review_review_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewItemView"
+                  },
+                  "type": "array",
+                  "title": "Response List Review Review Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/{flag_id}": {
+      "get": {
+        "tags": [
+          "investigations"
+        ],
+        "summary": "Get Review Item",
+        "operationId": "get_review_item_review__flag_id__get",
+        "parameters": [
+          {
+            "name": "flag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Flag Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewItemView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/{flag_id}/investigate": {
+      "post": {
+        "tags": [
+          "investigations"
+        ],
+        "summary": "Investigate",
+        "operationId": "investigate_review__flag_id__investigate_post",
+        "parameters": [
+          {
+            "name": "flag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Flag Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewItemView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/{flag_id}/answer": {
+      "post": {
+        "tags": [
+          "investigations"
+        ],
+        "summary": "Answer",
+        "operationId": "answer_review__flag_id__answer_post",
+        "parameters": [
+          {
+            "name": "flag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Flag Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewItemView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pnl": {
+      "get": {
+        "tags": [
+          "pnl"
+        ],
+        "summary": "Get Pnl",
+        "operationId": "get_pnl_pnl_get",
+        "parameters": [
+          {
+            "name": "current_period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Current Period"
+            }
+          },
+          {
+            "name": "time_cut",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TimeCut",
+              "default": "ytd"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PnLResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/variances": {
+      "get": {
+        "tags": [
+          "pnl"
+        ],
+        "summary": "Get Variances",
+        "operationId": "get_variances_variances_get",
+        "parameters": [
+          {
+            "name": "current_period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Current Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FlaggedVariance"
+                  },
+                  "title": "Response Get Variances Variances Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pnl/view": {
+      "get": {
+        "tags": [
+          "pnl"
+        ],
+        "summary": "Get Pnl View",
+        "operationId": "get_pnl_view_pnl_view_get",
+        "parameters": [
+          {
+            "name": "current_period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Current Period"
+            }
+          },
+          {
+            "name": "time_cut",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TimeCut",
+              "default": "ytd"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PnLResultView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/variances/view": {
+      "get": {
+        "tags": [
+          "pnl"
+        ],
+        "summary": "Get Variances View",
+        "operationId": "get_variances_view_variances_view_get",
+        "parameters": [
+          {
+            "name": "current_period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Current Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FlaggedVarianceView"
+                  },
+                  "title": "Response Get Variances View Variances View Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AcceptedCommentaryItem": {
+        "properties": {
+          "flag_id": {
+            "type": "string",
+            "title": "Flag Id"
+          },
+          "reporting_line": {
+            "type": "string",
+            "title": "Reporting Line"
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "is_edited": {
+            "type": "boolean",
+            "title": "Is Edited"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DraftProvenance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "flag_id",
+          "reporting_line",
+          "order",
+          "text",
+          "is_edited",
+          "provenance"
+        ],
+        "title": "AcceptedCommentaryItem"
+      },
+      "AnswerRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "accepted_hypothesis": {
+            "type": "boolean",
+            "title": "Accepted Hypothesis",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "AnswerRequest"
+      },
+      "ControllerInput": {
+        "properties": {
+          "input_id": {
+            "type": "string",
+            "title": "Input Id"
+          },
+          "flag_id": {
+            "type": "string",
+            "title": "Flag Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "accepted_hypothesis": {
+            "type": "boolean",
+            "title": "Accepted Hypothesis",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "input_id",
+          "flag_id",
+          "text"
+        ],
+        "title": "ControllerInput"
+      },
+      "Draft": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0.0",
+            "title": "Schema Version",
+            "default": "1.0.0"
+          },
+          "draft_id": {
+            "type": "string",
+            "title": "Draft Id"
+          },
+          "flag_id": {
+            "type": "string",
+            "title": "Flag Id"
+          },
+          "commentary": {
+            "type": "string",
+            "title": "Commentary"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/GLEvidenceRow"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "rendered_figures": {
+            "items": {
+              "$ref": "#/components/schemas/RenderedFigure"
+            },
+            "type": "array",
+            "title": "Rendered Figures"
+          },
+          "controller_input": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ControllerInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DraftProvenance"
+          },
+          "llm_log_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Llm Log Refs"
+          },
+          "is_proposal": {
+            "type": "boolean",
+            "const": true,
+            "title": "Is Proposal",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "draft_id",
+          "flag_id",
+          "commentary",
+          "evidence",
+          "rendered_figures",
+          "provenance",
+          "llm_log_refs"
+        ],
+        "title": "Draft"
+      },
+      "DraftProvenance": {
+        "properties": {
+          "flag_id": {
+            "type": "string",
+            "title": "Flag Id"
+          },
+          "evidence_row_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Row Ids"
+          },
+          "controller_input_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Controller Input Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "flag_id",
+          "evidence_row_ids"
+        ],
+        "title": "DraftProvenance"
+      },
+      "EditRequest": {
+        "properties": {
+          "edited_text": {
+            "type": "string",
+            "title": "Edited Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "edited_text"
+        ],
+        "title": "EditRequest"
+      },
+      "FigureSource": {
+        "type": "string",
+        "enum": [
+          "block1",
+          "gl",
+          "aggregate"
+        ],
+        "title": "FigureSource"
+      },
+      "FlaggedVariance": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0.0",
+            "title": "Schema Version",
+            "default": "1.0.0"
+          },
+          "flag_id": {
+            "type": "string",
+            "title": "Flag Id"
+          },
+          "reporting_line": {
+            "type": "string",
+            "title": "Reporting Line"
+          },
+          "line_type": {
+            "$ref": "#/components/schemas/LineType"
+          },
+          "time_cut": {
+            "$ref": "#/components/schemas/TimeCut"
+          },
+          "scenario_pair": {
+            "$ref": "#/components/schemas/ScenarioPair"
+          },
+          "current_value": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Current Value"
+          },
+          "comparator_value": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Comparator Value"
+          },
+          "abs_variance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Abs Variance"
+          },
+          "pct_variance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Variance"
+          },
+          "pp_variance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp Variance"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "favorable",
+              "unfavorable"
+            ],
+            "title": "Direction"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "abs_threshold": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Abs Threshold"
+          },
+          "pct_threshold": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pct Threshold"
+          },
+          "pp_threshold": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pp Threshold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "flag_id",
+          "reporting_line",
+          "line_type",
+          "time_cut",
+          "scenario_pair",
+          "current_value",
+          "comparator_value",
+          "direction",
+          "rule_id",
+          "abs_threshold",
+          "pct_threshold",
+          "pp_threshold"
+        ],
+        "title": "FlaggedVariance",
+        "description": "Versioned PUBLIC CONTRACT consumed by Block 3 (the AI layer).\n\nDecimal fields serialize as strings in JSON mode (Pydantic v2 default) to\npreserve exact precision across the block boundary. Do not change this shape\nwithout bumping ``schema_version`` and the committed JSON Schema."
+      },
+      "FlaggedVarianceView": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0.0",
+            "title": "Schema Version",
+            "default": "1.0.0"
+          },
+          "flag_id": {
+            "type": "string",
+            "title": "Flag Id"
+          },
+          "reporting_line": {
+            "type": "string",
+            "title": "Reporting Line"
+          },
+          "line_type": {
+            "$ref": "#/components/schemas/LineType"
+          },
+          "time_cut": {
+            "$ref": "#/components/schemas/TimeCut"
+          },
+          "scenario_pair": {
+            "$ref": "#/components/schemas/ScenarioPair"
+          },
+          "current_value": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Current Value"
+          },
+          "comparator_value": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Comparator Value"
+          },
+          "abs_variance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Abs Variance"
+          },
+          "pct_variance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Variance"
+          },
+          "pp_variance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp Variance"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "favorable",
+              "unfavorable"
+            ],
+            "title": "Direction"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "abs_threshold": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Abs Threshold"
+          },
+          "pct_threshold": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pct Threshold"
+          },
+          "pp_threshold": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pp Threshold"
+          },
+          "current_display": {
+            "type": "string",
+            "title": "Current Display"
+          },
+          "comparator_display": {
+            "type": "string",
+            "title": "Comparator Display"
+          },
+          "abs_display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Abs Display"
+          },
+          "pct_display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Display"
+          },
+          "pp_display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp Display"
+          }
+        },
+        "type": "object",
+        "required": [
+          "flag_id",
+          "reporting_line",
+          "line_type",
+          "time_cut",
+          "scenario_pair",
+          "current_value",
+          "comparator_value",
+          "direction",
+          "rule_id",
+          "abs_threshold",
+          "pct_threshold",
+          "pp_threshold",
+          "current_display",
+          "comparator_display"
+        ],
+        "title": "FlaggedVarianceView",
+        "description": "The Block 1 flag (all fields) PLUS Python-formatted display strings."
+      },
+      "GLEvidenceRow": {
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "title": "Transaction Id"
+          },
+          "gl_account": {
+            "type": "string",
+            "title": "Gl Account"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount"
+          },
+          "period": {
+            "type": "integer",
+            "title": "Period"
+          },
+          "scenario": {
+            "type": "string",
+            "title": "Scenario"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project"
+          },
+          "counterparty": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Labels",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_id",
+          "gl_account",
+          "amount",
+          "period",
+          "scenario",
+          "date"
+        ],
+        "title": "GLEvidenceRow"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Hypothesis": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "evidence_row_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Row Ids",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "Hypothesis"
+      },
+      "InvestigationRecord": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0.0",
+            "title": "Schema Version",
+            "default": "1.0.0"
+          },
+          "flag_id": {
+            "type": "string",
+            "title": "Flag Id"
+          },
+          "variance": {
+            "$ref": "#/components/schemas/FlaggedVariance"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RecordStatus"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/GLEvidenceRow"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "hypothesis": {
+            "$ref": "#/components/schemas/Hypothesis"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Question"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Draft"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "llm_log_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Llm Log Refs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "flag_id",
+          "variance",
+          "status",
+          "evidence",
+          "hypothesis",
+          "llm_log_refs"
+        ],
+        "title": "InvestigationRecord"
+      },
+      "LineType": {
+        "type": "string",
+        "enum": [
+          "revenue",
+          "cost",
+          "subtotal",
+          "margin"
+        ],
+        "title": "LineType"
+      },
+      "PnLCell": {
+        "properties": {
+          "reporting_line": {
+            "type": "string",
+            "title": "Reporting Line"
+          },
+          "scenario": {
+            "$ref": "#/components/schemas/Scenario"
+          },
+          "time_cut": {
+            "$ref": "#/components/schemas/TimeCut"
+          },
+          "value": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Value"
+          },
+          "value_kind": {
+            "$ref": "#/components/schemas/ValueKind"
+          },
+          "is_margin": {
+            "type": "boolean",
+            "title": "Is Margin",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "reporting_line",
+          "scenario",
+          "time_cut",
+          "value",
+          "value_kind"
+        ],
+        "title": "PnLCell"
+      },
+      "PnLLine": {
+        "properties": {
+          "reporting_line": {
+            "type": "string",
+            "title": "Reporting Line"
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order"
+          },
+          "line_type": {
+            "$ref": "#/components/schemas/LineType"
+          },
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/PnLCell"
+            },
+            "type": "array",
+            "title": "Cells"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reporting_line",
+          "order",
+          "line_type",
+          "cells"
+        ],
+        "title": "PnLLine"
+      },
+      "PnLLineView": {
+        "properties": {
+          "reporting_line": {
+            "type": "string",
+            "title": "Reporting Line"
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order"
+          },
+          "line_type": {
+            "type": "string",
+            "title": "Line Type"
+          },
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/PnlCellView"
+            },
+            "type": "array",
+            "title": "Cells"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reporting_line",
+          "order",
+          "line_type",
+          "cells"
+        ],
+        "title": "PnLLineView"
+      },
+      "PnLResult": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PnLLine"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "reconciliation": {
+            "$ref": "#/components/schemas/ReconciliationStatus"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/ProvenanceIndex"
+          },
+          "reporting_currency": {
+            "type": "string",
+            "const": "EUR",
+            "title": "Reporting Currency",
+            "default": "EUR"
+          },
+          "current_period": {
+            "type": "integer",
+            "title": "Current Period"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lines",
+          "reconciliation",
+          "provenance",
+          "current_period"
+        ],
+        "title": "PnLResult"
+      },
+      "PnLResultView": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PnLLineView"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "reporting_currency": {
+            "type": "string",
+            "title": "Reporting Currency"
+          },
+          "current_period": {
+            "type": "integer",
+            "title": "Current Period"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lines",
+          "reporting_currency",
+          "current_period"
+        ],
+        "title": "PnLResultView"
+      },
+      "PnlCellView": {
+        "properties": {
+          "reporting_line": {
+            "type": "string",
+            "title": "Reporting Line"
+          },
+          "scenario": {
+            "type": "string",
+            "title": "Scenario"
+          },
+          "time_cut": {
+            "type": "string",
+            "title": "Time Cut"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "display": {
+            "type": "string",
+            "title": "Display"
+          },
+          "value_kind": {
+            "type": "string",
+            "title": "Value Kind"
+          },
+          "is_margin": {
+            "type": "boolean",
+            "title": "Is Margin"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reporting_line",
+          "scenario",
+          "time_cut",
+          "value",
+          "display",
+          "value_kind",
+          "is_margin"
+        ],
+        "title": "PnlCellView"
+      },
+      "ProvenanceIndex": {
+        "properties": {
+          "by_cell": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "By Cell",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "title": "ProvenanceIndex",
+        "description": "Maps each cell to the contributing transaction ids.\n\nKeyed by the string ``f\"{reporting_line}|{scenario}|{time_cut}\"`` so the model\nremains JSON-serializable while still giving full traceability for every cell\n(Constitution Principle II \u2014 Auditability)."
+      },
+      "Question": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0.0",
+            "title": "Schema Version",
+            "default": "1.0.0"
+          },
+          "question_id": {
+            "type": "string",
+            "title": "Question Id"
+          },
+          "flag_id": {
+            "type": "string",
+            "title": "Flag Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "hypothesis": {
+            "$ref": "#/components/schemas/Hypothesis"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/GLEvidenceRow"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "rendered_figures": {
+            "items": {
+              "$ref": "#/components/schemas/RenderedFigure"
+            },
+            "type": "array",
+            "title": "Rendered Figures"
+          },
+          "llm_log_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Llm Log Refs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question_id",
+          "flag_id",
+          "text",
+          "hypothesis",
+          "evidence",
+          "rendered_figures",
+          "llm_log_refs"
+        ],
+        "title": "Question"
+      },
+      "ReconciliationStatus": {
+        "properties": {
+          "is_complete": {
+            "type": "boolean",
+            "title": "Is Complete"
+          },
+          "residual": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Residual"
+          },
+          "unmapped_accounts": {
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+            },
+            "type": "object",
+            "title": "Unmapped Accounts",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "is_complete",
+          "residual"
+        ],
+        "title": "ReconciliationStatus"
+      },
+      "RecordStatus": {
+        "type": "string",
+        "enum": [
+          "question",
+          "draft"
+        ],
+        "title": "RecordStatus"
+      },
+      "RenderedFigure": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "source": {
+            "$ref": "#/components/schemas/FigureSource"
+          },
+          "value": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Value"
+          },
+          "origin": {
+            "type": "string",
+            "title": "Origin"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "source",
+          "value",
+          "origin"
+        ],
+        "title": "RenderedFigure"
+      },
+      "ReviewAction": {
+        "properties": {
+          "action_id": {
+            "type": "string",
+            "title": "Action Id"
+          },
+          "flag_id": {
+            "type": "string",
+            "title": "Flag Id"
+          },
+          "action": {
+            "$ref": "#/components/schemas/ReviewActionType"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "from_status": {
+            "$ref": "#/components/schemas/ReviewStatus"
+          },
+          "to_status": {
+            "$ref": "#/components/schemas/ReviewStatus"
+          },
+          "payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action_id",
+          "flag_id",
+          "action",
+          "actor",
+          "ts",
+          "from_status",
+          "to_status"
+        ],
+        "title": "ReviewAction"
+      },
+      "ReviewActionType": {
+        "type": "string",
+        "enum": [
+          "investigate",
+          "answer",
+          "accept",
+          "edit",
+          "dismiss"
+        ],
+        "title": "ReviewActionType"
+      },
+      "ReviewItemView": {
+        "properties": {
+          "flag_id": {
+            "type": "string",
+            "title": "Flag Id"
+          },
+          "reporting_line": {
+            "type": "string",
+            "title": "Reporting Line"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReviewStatus"
+          },
+          "record": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvestigationRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "original_draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Draft"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "controller_answer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ControllerInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "edited_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edited Text"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "flag_id",
+          "reporting_line",
+          "status"
+        ],
+        "title": "ReviewItemView"
+      },
+      "ReviewProgressView": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "resolved": {
+            "type": "integer",
+            "title": "Resolved"
+          },
+          "by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "resolved",
+          "by_status"
+        ],
+        "title": "ReviewProgressView"
+      },
+      "ReviewStatus": {
+        "type": "string",
+        "enum": [
+          "detected",
+          "investigating",
+          "awaiting_controller",
+          "drafted",
+          "accepted",
+          "dismissed"
+        ],
+        "title": "ReviewStatus"
+      },
+      "Scenario": {
+        "type": "string",
+        "enum": [
+          "prior_year",
+          "current_year",
+          "budget"
+        ],
+        "title": "Scenario"
+      },
+      "ScenarioPair": {
+        "type": "string",
+        "enum": [
+          "current_vs_prior_year",
+          "current_vs_budget"
+        ],
+        "title": "ScenarioPair"
+      },
+      "TimeCut": {
+        "type": "string",
+        "enum": [
+          "prior_month_ytd",
+          "current_month",
+          "ytd",
+          "full_year"
+        ],
+        "title": "TimeCut"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "ValueKind": {
+        "type": "string",
+        "enum": [
+          "actual",
+          "budget",
+          "landing",
+          "not_meaningful"
+        ],
+        "title": "ValueKind"
+      }
+    }
+  }
+}

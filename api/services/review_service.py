@@ -30,7 +30,14 @@ from agent.audit import AuditLog
 from agent.investigate import draft_from_controller, investigate as agent_investigate
 from agent.models import ControllerInput
 from agent.tools import GLRowSource, make_gl_tool
-from api.schemas import AcceptedCommentaryItem, ReviewProgressView
+from api.schemas import (
+    AcceptedCommentaryItem,
+    FlaggedVarianceView,
+    PnLResultView,
+    ReviewProgressView,
+    to_flag_view,
+    to_pnl_view,
+)
 from api.services.lifecycle import transition
 
 
@@ -65,6 +72,13 @@ class ReviewService:
         if current_period == self._session_period:
             self._ensure_items(flags)
         return flags
+
+    def get_pnl_view(self, current_period: int, time_cut: TimeCut) -> PnLResultView:
+        """Display-string projection of the P&L (figures formatted by deterministic Python)."""
+        return to_pnl_view(self.get_pnl(current_period, time_cut))
+
+    def get_flags_view(self, current_period: int) -> list[FlaggedVarianceView]:
+        return [to_flag_view(f) for f in self.get_flags(current_period)]
 
     # --- workflow actions ------------------------------------------------------
     def investigate(self, flag_id: str, *, now: str) -> ReviewItem:

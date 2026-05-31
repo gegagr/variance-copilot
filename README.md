@@ -94,6 +94,23 @@ uv run uvicorn api.main:app --reload     # Swagger UI at http://localhost:8000/d
 
 All API tests run offline via `TestClient` + Block 3's `FakeLLMProvider` (no key, no network).
 
+## Block 5 — Review workspace UI (`web/`)
+
+A React + TypeScript SPA (Vite) consuming the Block 4 API. It **renders figures from the API and
+computes none** — every number is the API's deterministic display string (formatted by Python in
+`engine/format.py`, served from `/pnl/view` and `/variances/view`), rendered verbatim. Card status
+always mirrors the API's review lifecycle; TanStack Query mutations invalidate + refetch.
+
+```bash
+cd web && npm install
+npm run gen:api          # regenerate types from the FastAPI OpenAPI schema (see web/README.md)
+npm test                 # Vitest + RTL + MSW — fully offline
+npm run dev              # live: proxies /api -> the FastAPI backend (OpenRouter key stays backend-only)
+```
+
+A `noArithmetic` test fails the build if any component does figure arithmetic — the presentation-
+layer analogue of Block 3's guard and Block 4's pass-through test. See [web/README.md](web/README.md).
+
 ## Guarantees (enforced by tests)
 
 - **Deterministic** — identical inputs + config produce byte-identical output (`test_determinism.py`).
